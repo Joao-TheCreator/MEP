@@ -3,7 +3,7 @@ import { FarmMap } from "@/art/FarmMap";
 import { FarmScene } from "@/art/FarmScene";
 import { Sprite } from "@/art/pixel";
 import { AVATARS, AVATAR_KEYS, AVATAR_SPRITES } from "@/art/avatars";
-import { Walker } from "@/art/Walker";
+import { Walker } from "@/art/WalkerSprite";
 import { WALKERS } from "@/art/walker";
 import {
   BARN, CONSTRUCTION, HOUSE, LOGO, MILL, PALM, POOL, RESOURCE_SPRITES, TREE, TREE_DARK, WELL, templeSprite,
