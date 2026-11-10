@@ -6,7 +6,7 @@ import { rng } from "@/art/grid";
 import { TREE_DARK } from "@/art/sprites";
 import { WALKERS, WALKER_H } from "@/art/walker";
 import { AVATARS, AVATAR_KEYS, type AvatarKey } from "@/art/avatars";
-import { Walker } from "@/art/Walker";
+import { Walker } from "@/art/WalkerSprite";
 import {
   ARENA, CAMP, CLASSES, ENEMIES, WAVES, advance, createNight, fireSpecial, heroDown, nightResult, shieldOn,
   specialReady, type Enemy, type HeroClass, type NightState,
