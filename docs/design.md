@@ -237,3 +237,96 @@ jogadores; doação às 3 construções; ranking semanal; PWA instalável.
 **Pós-MVP (ideias):** Cozinheiro e Comerciante; refeições como "buff" temporário;
 eventos semanais (ex.: "semana da colheita", 2× Grãos); conquistas; notificações
 push quando o armazém encher; histórico de construções com quem mais ajudou.
+
+---
+
+## 11. Personagem (proposta do Rodrigo, em revisão)
+
+Cada morador evolui também **sozinho**, além do sítio coletivo. Tudo o que vem
+daqui é somado num único conjunto de bônus pessoais (`characterBonuses` em
+`src/game/character.ts`) e tem **teto** (`BONUS_CAPS`), para não estourar a
+economia nem a escala de custo das construções (#4).
+
+### 11.1 Nível e experiência
+
+- Nível 1 a **30**. Ir do nível 1 ao 2 custa **100 XP**; cada nível seguinte custa
+  **20% mais** (nível 10 → 11: 516 XP).
+- XP por ponto de valor movimentado: **doar 1**, **fabricar 0,5** (sobre os pontos do
+  que saiu), **coletar 0,1**. **Enviar a um amigo não dá XP** (dois amigos poderiam
+  ficar mandando um para o outro sem fim).
+- Ritmo esperado: quem doa metade do que produz chega ao nível 10 em uns 3 dias e ao
+  20 em umas 3 semanas.
+
+### 11.2 Atributos
+
+Cada nível dá **1 ponto** para distribuir. Máximo de **20 pontos** por atributo.
+Cada atributo vale de dia (sítio) e de noite (ronda, #14):
+
+| Atributo | Por ponto, de dia | Por ponto, à noite |
+| --- | --- | --- |
+| Força | +1,5% de produção | +3% de dano |
+| Resistência | +12 min de armazém | +4% de vida |
+| Agilidade | +3% de recuperação de energia | +2% de velocidade de ataque |
+| Ofício | +1,5% de chance de fabricar em dobro | +3% de carga do especial |
+| Espírito | +2% do que você doa conta na obra (não no ranking) | +4% de cura nos amigos |
+
+**Energia:** 0 a 100, recupera 10 por hora. **Não** limita coletar, fabricar nem
+doar (isso brigaria com o idle). Vai ser gasta na ronda da noite e em tarefas
+especiais.
+
+### 11.3 Árvore de habilidades (talentos)
+
+Por profissão, **4 níveis de talento**, que abrem nos níveis **5, 10, 15 e 20**.
+Em cada um, escolhe-se **1 entre 2**: um caminho "para mim" (produção, armazém) e
+outro "para o grupo" (doações rendem mais na obra, fabricar em dobro). Lista completa
+em `TALENTS` (`src/game/config.ts`). Exemplo, Agricultor:
+
+| Nível | Para mim | Para o grupo |
+| --- | --- | --- |
+| 5 | Mão boa: +8% produção | Colheita farta: +60 min armazém |
+| 10 | Ração caprichada: +6% fabricar em dobro | Primícias: doações +6% na obra |
+| 15 | De sol a sol: +12% produção | Mutirão: doações +10% na obra |
+| 20 | Safra recorde: +15% produção, +60 min | Celeiro do povo: doações +15% na obra |
+
+### 11.4 Tetos dos bônus pessoais
+
+| Bônus | Teto |
+| --- | --- |
+| Produção | +100% |
+| Armazém | +360 min (6 h) |
+| Fabricar em dobro | 50% |
+| Doação rende na obra | +60% |
+
+## 12. Ferramentas e armas
+
+Todo mundo começa com uma **ferramenta de trabalho** (da profissão) e uma **arma da
+ronda** (da classe da noite), as duas de **Madeira**. Melhorar sobe o tier:
+
+| Tier | Bônus | Custo para chegar (a partir do anterior) |
+| --- | --- | --- |
+| Madeira | 0% | — (inicial) |
+| Bronze | +4% | 10 Tábuas, 4 Barras de ferro, 1 Ferramenta |
+| Ferro | +8% | 19 Tábuas, 8 Barras, 2 Ferramentas |
+| Prata | +13% | 37 Tábuas, 15 Barras, 4 Ferramentas |
+| Ouro | +19% | 69 Tábuas, 28 Barras, 7 Ferramentas |
+| Diamante | +26% | 131 Tábuas, 53 Barras, 14 Ferramentas |
+| Brasa (lendária) | +34% | bloqueada: vai custar Brasas do grupo (#17) |
+
+- Ferramenta de trabalho: Enxada (Agricultor), Balde (Pecuarista), Machado
+  (Carpinteiro), Martelo (Ferreiro). O bônus vai para a **produção**.
+- Arma da ronda: Bola de vôlei, Colchonete, Violão, Concha (Cozinheira), Lanterna.
+  O bônus vai para o **dano**.
+- Os custos usam Tábua, Barra e Ferramenta de propósito: todo mundo precisa do
+  Carpinteiro e do Ferreiro para equipar.
+
+## 13. Caixa do sítio (ideia, ainda não decidida)
+
+Um dinheiro **do grupo**, e o grupo decide como gastar.
+
+- **Entra:** venda de excedente no "mercado da cidade" (preço fixo, abaixo do valor
+  em pontos), parte do que o Comerciante ganha, prêmios de eventos e da Noite da Horda.
+- **Sai, por votação:** buff temporário para todos (ex.: +10% por 24 h), reparos
+  depois de uma horda perdida (#17), adiantar uma obra, festas e eventos.
+- **Votação:** qualquer morador propõe (o que, quanto, por quê); fica aberta 24 h;
+  passa com maioria de quem votou e pelo menos 30% dos ativos votando. Cada um
+  propõe no máximo 1 vez por dia. Tudo fica num **livro-caixa** visível para todos.
