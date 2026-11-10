@@ -6,6 +6,7 @@
 // Re-running it resets the demo farm (invite code DEMO01). It refuses to run
 // against a non-local database unless SEED_FORCE=1.
 import { createHash, randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import postgres from "postgres";
 
 const url = process.env.DATABASE_URL;
@@ -23,15 +24,11 @@ const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 const LOGIN_AS = process.env.SEED_LOGIN ?? "joao-pedro";
 const hash = (t) => createHash("sha256").update(t).digest("hex");
 
-// Keep in sync with AVATARS in src/art/avatars.ts (key, display name).
-const PEOPLE = [
-  ["joao-pedro", "João Pedro"], ["drielly", "Drielly"], ["hernnane", "Hernnane"],
-  ["gabriel-campos", "Gabriel Campos"], ["heloisa", "Heloisa"], ["samuel", "Samuel"],
-  ["alessandra", "Alessandra"], ["sarah", "Sarah"], ["samuel-choi", "Samuel Choi"],
-  ["alex", "Alex"], ["nathan", "Nathan"], ["idro", "Idro"], ["suzana", "Suzana"],
-  ["carol", "Carol"], ["sofia", "Sofia"], ["stephany", "Stephany"], ["bniel", "Bniel"],
-  ["leine", "Leine"], ["rodrigo", "Rodrigo"], ["diego", "Diego"],
-];
+// People and resource points live in seed-data.json; src/game/seed-data.test.ts
+// checks them against AVATARS (src/art/avatars.ts) and RESOURCES (src/game/config.ts).
+const DATA = JSON.parse(readFileSync(new URL("./seed-data.json", import.meta.url), "utf8"));
+const PEOPLE = DATA.people.map((p) => [p.key, p.name]);
+const POINTS = DATA.points;
 const PROFESSIONS = ["carpenter", "farmer", "rancher", "blacksmith"];
 const STARTER = {
   farmer: { grain: 240, feed: 12 },
@@ -39,7 +36,6 @@ const STARTER = {
   carpenter: { wood: 220, plank: 30 },
   blacksmith: { ore: 110, iron_bar: 10, tool: 3 },
 };
-const POINTS = { grain: 1, milk: 2, wood: 1, ore: 2, feed: 6, cheese: 10, plank: 4, iron_bar: 10, tool: 29 };
 
 const sql = postgres(url, { max: 1, onnotice: () => {} });
 try {
