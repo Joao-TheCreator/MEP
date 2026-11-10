@@ -68,8 +68,23 @@ Calça e sapatos podem ser personalizados por pessoa (`pants`, `pantsShade`, `sh
 O componente `Walker` (`src/art/Walker.tsx`) anima os quadros e respeita
 “reduzir movimento”. Veja todos em `/art`.
 
+## Sítio vivo (`src/art/FarmScene.tsx`)
+
+Na aba Sítio, os moradores andam pelo mapa. É só enfeite: roda no navegador e não
+muda nada do jogo.
+
+- **Caminhos:** os bonecos andam por uma rede de pontos (`NODES`/`EDGES`) nas trilhas,
+  no pátio, no campo e no gramado; param um pouco e seguem. Para abrir uma área nova,
+  acrescente pontos e ligações (em dev, `/art` desenha a rede em rosa).
+- **Escala:** bonecos em meia escala (1 pixel do boneco = ½ pixel do mapa), para o rosto
+  continuar legível sem ficarem do tamanho das casas. O mapa aparece com zoom 2× numa
+  janela que se arrasta, começando no pátio.
+- **Profundidade:** cenário e bonecos são ordenados pela linha dos pés, então ninguém
+  “flutua” na frente de uma construção.
+- Tocar num boneco mostra nome, profissão e nível; seu boneco tem uma setinha rosa.
+- Com “reduzir movimento”, ficam parados.
+
 ## Pendências
 
 - Commitar o arquivo original da logo em `public/brand/logo.png` (o jogo usa a
   versão pixelada `LOGO` em `src/art/sprites.ts`).
-- Bonecos andando no mapa (próximo passo).
