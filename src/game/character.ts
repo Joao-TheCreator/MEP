@@ -4,11 +4,15 @@
  */
 import {
   ATTRIBUTE_KEYS,
+  BAG,
   ATTRIBUTES,
   BONUS_CAPS,
   GEAR,
   LEVEL,
   MAX_ATTRIBUTE_POINTS,
+  REFINE,
+  SLOT_KEYS,
+  SLOTS,
   TALENTS,
   TIER_KEYS,
   TIERS,
@@ -18,8 +22,10 @@ import {
   type BonusBag,
   type BonusKey,
   type CharacterBonuses,
+  type NightClassKey,
   type ProfessionKey,
   type ResourceKey,
+  type SlotKey,
   type Talent,
   type TierKey,
 } from "./config";
@@ -141,10 +147,74 @@ export function gearUpgradeCost(tier: TierKey): Bag | null {
   return out;
 }
 
-/** Work tools boost production; night weapons boost damage. */
-export function gearBonus(kind: "tool" | "weapon", tier: TierKey): BonusBag {
-  const power = TIERS[tier].power;
-  return kind === "tool" ? { productionPct: power } : { damagePct: power };
+/** One piece of equipment. `kind` is the profession (tools) or night class (weapons). */
+export interface GearItem {
+  slot: SlotKey;
+  tier: TierKey;
+  refine: number;
+  kind?: ProfessionKey | NightClassKey;
+}
+
+/** Value the item adds to its slot's bonus (SLOTS[slot].stat). */
+export function itemValue(item: GearItem): number {
+  const s = SLOTS[item.slot];
+  return Math.round(s.perPower * (TIERS[item.tier].power + item.refine * s.refineStep) * 100) / 100;
+}
+
+/** A work tool only works for its own profession; everything else always works. */
+export function itemWorksFor(item: GearItem, profession: ProfessionKey): boolean {
+  return item.slot !== "tool" || item.kind === profession;
+}
+
+/** Cost to refine an item from +r to +(r+1) (null at the max). */
+export function refineCost(refine: number): Bag | null {
+  if (refine >= REFINE.maxLevel) return null;
+  const out: Bag = {};
+  for (const [k, v] of Object.entries(REFINE.costPerLevel) as [ResourceKey, number][]) out[k] = Math.ceil(v * (refine + 1));
+  return out;
+}
+
+export type Loadout = Partial<Record<SlotKey, GearItem | null>>;
+
+export interface GearSuggestion {
+  slot: SlotKey;
+  /** Index of the better item in the backpack. */
+  bagIndex: number;
+  /** How much the slot's bonus goes up. */
+  gain: number;
+}
+
+/**
+ * For each slot, the best item in the backpack that beats what is equipped
+ * (and works for this profession). Lets the screen say "tem coisa melhor na
+ * mochila" and offer one-tap "equipar o melhor".
+ */
+export function gearSuggestions(loadout: Loadout, bag: (GearItem | null)[], profession: ProfessionKey): GearSuggestion[] {
+  const out: GearSuggestion[] = [];
+  for (const slot of SLOT_KEYS) {
+    const cur = loadout[slot];
+    const curValue = cur && itemWorksFor(cur, profession) ? itemValue(cur) : 0;
+    let best: GearSuggestion | null = null;
+    bag.forEach((it, i) => {
+      if (!it || it.slot !== slot || !itemWorksFor(it, profession)) return;
+      const gain = Math.round((itemValue(it) - curValue) * 100) / 100;
+      if (gain > 0 && (!best || gain > best.gain)) best = { slot, bagIndex: i, gain };
+    });
+    if (best) out.push(best);
+  }
+  return out;
+}
+
+/** Equips every suggestion, swapping the old items into the backpack. */
+export function equipBest(loadout: Loadout, bag: (GearItem | null)[], profession: ProfessionKey) {
+  const next: Loadout = { ...loadout };
+  const nextBag = [...bag];
+  for (const s of gearSuggestions(loadout, bag, profession)) {
+    const old = next[s.slot] ?? null;
+    next[s.slot] = nextBag[s.bagIndex];
+    nextBag[s.bagIndex] = old;
+  }
+  return { loadout: next, bag: nextBag };
 }
 
 // ---------- totals ----------
@@ -159,8 +229,7 @@ export interface CharacterBuild {
   profession: ProfessionKey;
   attributes: Attributes;
   talents: TalentPicks;
-  toolTier: TierKey;
-  weaponTier: TierKey;
+  gear: Loadout;
 }
 
 /** All personal bonuses added up and capped (BONUS_CAPS). */
@@ -171,8 +240,9 @@ export function characterBonuses(build: CharacterBuild): CharacterBonuses {
   };
   for (const k of ATTRIBUTE_KEYS) add(ATTRIBUTES[k].perPoint, build.attributes[k]);
   for (const t of chosenTalents(build.profession, build.talents)) add(t.bonus);
-  add(gearBonus("tool", build.toolTier));
-  add(gearBonus("weapon", build.weaponTier));
+  for (const item of Object.values(build.gear)) {
+    if (item && itemWorksFor(item, build.profession)) total[SLOTS[item.slot].stat] += itemValue(item);
+  }
   for (const k of BONUS_KEYS) total[k] = Math.min(BONUS_CAPS[k], Math.round(total[k] * 100) / 100);
   return total;
 }
@@ -185,4 +255,9 @@ export function craftExtraUnits(times: number, craftExtraPct: number, roll: numb
   const expected = (times * craftExtraPct) / 100;
   const whole = Math.floor(expected);
   return whole + (roll < expected - whole ? 1 : 0);
+}
+
+/** Backpack pages open at this level (BAG.pageUnlockLevels). */
+export function bagPagesOpen(level: number): number {
+  return BAG.pageUnlockLevels.filter((l) => level >= l).length;
 }

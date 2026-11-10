@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { BONUS_CAPS, LEVEL, MAX_ATTRIBUTE_POINTS, PROFESSION_KEYS, TALENTS, TIER_KEYS, TIERS } from "./config";
 import {
   attributePointsEarned,
+  bagPagesOpen,
+  equipBest,
+  gearSuggestions,
+  itemValue,
+  refineCost,
+  type GearItem,
   attributesError,
   characterBonuses,
   craftExtraUnits,
@@ -85,8 +91,55 @@ describe("gear tiers (design §12)", () => {
   });
 });
 
+describe("items, refine and slots (design §12)", () => {
+  it("an item adds perPower × (tier power + refine × step) to its slot's bonus", () => {
+    expect(itemValue({ slot: "tool", kind: "farmer", tier: "silver", refine: 4 })).toBe(13 + 4);
+    expect(itemValue({ slot: "weapon", kind: "volley", tier: "bronze", refine: 2 })).toBe(4 + 4);
+    expect(itemValue({ slot: "hat", tier: "gold", refine: 0 })).toBe(57);
+    expect(itemValue({ slot: "hands", tier: "wood", refine: 4 })).toBe(1);
+  });
+
+  it("refine goes up to +10; cost grows with the level", () => {
+    expect(refineCost(0)).toEqual({ iron_bar: 2, tool: 1 });
+    expect(refineCost(5)).toEqual({ iron_bar: 12, tool: 3 });
+    expect(refineCost(9)).toEqual({ iron_bar: 20, tool: 5 });
+    expect(refineCost(10)).toBeNull();
+  });
+
+  it("backpack page III opens at level 15", () => {
+    expect(bagPagesOpen(1)).toBe(2);
+    expect(bagPagesOpen(15)).toBe(3);
+  });
+});
+
+describe("gear suggestions", () => {
+  const enxadaPrata: GearItem = { slot: "tool", kind: "farmer", tier: "silver", refine: 4 };
+  const enxadaOuro: GearItem = { slot: "tool", kind: "farmer", tier: "gold", refine: 7 };
+  const machado: GearItem = { slot: "tool", kind: "carpenter", tier: "diamond", refine: 10 };
+  const broche: GearItem = { slot: "pin", tier: "bronze", refine: 0 };
+  const chapeuRuim: GearItem = { slot: "hat", tier: "wood", refine: 0 };
+  const chapeu: GearItem = { slot: "hat", tier: "iron", refine: 1 };
+
+  it("points at the best item per slot, ignoring tools of other professions", () => {
+    const bag = [machado, enxadaOuro, null, broche, chapeuRuim];
+    const s = gearSuggestions({ tool: enxadaPrata, hat: chapeu }, bag, "farmer");
+    expect(s).toEqual([
+      { slot: "tool", bagIndex: 1, gain: 9 },
+      { slot: "pin", bagIndex: 3, gain: 1.2 },
+    ]);
+  });
+
+  it("equipBest swaps them and leaves the old ones in the backpack", () => {
+    const r = equipBest({ tool: enxadaPrata }, [enxadaOuro, broche], "farmer");
+    expect(r.loadout.tool).toBe(enxadaOuro);
+    expect(r.loadout.pin).toBe(broche);
+    expect(r.bag).toEqual([enxadaPrata, null]);
+    expect(gearSuggestions(r.loadout, r.bag, "farmer")).toEqual([]);
+  });
+});
+
 describe("characterBonuses", () => {
-  const base = { profession: "farmer" as const, attributes: emptyAttributes(), talents: [], toolTier: "wood" as const, weaponTier: "wood" as const };
+  const base = { profession: "farmer" as const, attributes: emptyAttributes(), talents: [], gear: {} };
 
   it("starts at zero", () => {
     expect(characterBonuses(base).productionPct).toBe(0);
@@ -97,20 +150,31 @@ describe("characterBonuses", () => {
       ...base,
       attributes: { ...emptyAttributes(), strength: 10, endurance: 5 },
       talents: [0, 1],
-      toolTier: "silver",
-      weaponTier: "bronze",
+      gear: {
+        tool: { slot: "tool", kind: "farmer", tier: "silver", refine: 0 },
+        weapon: { slot: "weapon", kind: "volley", tier: "bronze", refine: 0 },
+        hat: { slot: "hat", tier: "bronze", refine: 0 },
+      },
     });
-    expect(b.productionPct).toBe(15 + 8 + 13); // strength + Mão boa + Prata
-    expect(b.storageMinutes).toBe(60);
-    expect(b.donationProgressPct).toBe(6); // Primícias
+    expect(b.productionPct).toBe(15 + 8 + 13); // strength + Mão boa + Enxada de Prata
+    expect(b.storageMinutes).toBe(60 + 12);    // endurance + Chapéu de Bronze
+    expect(b.donationProgressPct).toBe(6);     // Primícias
     expect(b.damagePct).toBe(30 + 4);
+  });
+
+  it("a tool of another profession does nothing", () => {
+    const b = characterBonuses({ ...base, gear: { tool: { slot: "tool", kind: "carpenter", tier: "diamond", refine: 10 } } });
+    expect(b.productionPct).toBe(0);
   });
 
   it("is capped", () => {
     const maxed = { strength: 20, endurance: 20, agility: 20, craft: 20, spirit: 20 };
-    const b = characterBonuses({ ...base, attributes: maxed, talents: [0, 0, 0, 0], toolTier: "diamond", weaponTier: "diamond" });
+    const top = (slot: GearItem["slot"], kind?: GearItem["kind"]): GearItem => ({ slot, kind, tier: "diamond", refine: 10 });
+    const gear = { tool: top("tool", "farmer"), weapon: top("weapon", "volley"), hat: top("hat"), body: top("body"),
+      hands: top("hands"), feet: top("feet"), pin: top("pin"), bracelet: top("bracelet") };
+    const b = characterBonuses({ ...base, attributes: maxed, talents: [0, 0, 0, 0], gear });
     for (const k of Object.keys(BONUS_CAPS) as (keyof typeof BONUS_CAPS)[]) expect(b[k]).toBeLessThanOrEqual(BONUS_CAPS[k]);
-    expect(b.productionPct).toBe(30 + 35 + 26);
+    expect(b.productionPct).toBe(BONUS_CAPS.productionPct);
   });
 });
 

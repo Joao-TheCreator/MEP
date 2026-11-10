@@ -395,3 +395,41 @@ export const NIGHT_WEAPONS: Record<NightClassKey, { className: string; name: str
   cook: { className: "Cozinheira", name: "Concha" },
   lantern: { className: "Lanterna", name: "Lanterna" },
 };
+
+/** Equipment slots around the character (design §12). */
+export type SlotKey = "hat" | "body" | "hands" | "feet" | "tool" | "weapon" | "pin" | "bracelet";
+
+export interface Slot {
+  label: string;
+  /** Item name (tool and weapon names come from WORK_TOOLS / NIGHT_WEAPONS). */
+  itemName?: string;
+  /** Which personal bonus the item raises. */
+  stat: BonusKey;
+  /** Bonus = perPower × (tier power + refine × refineStep). */
+  perPower: number;
+  refineStep: number;
+}
+
+export const SLOTS: Record<SlotKey, Slot> = {
+  hat: { label: "Cabeça", itemName: "Chapéu de palha", stat: "storageMinutes", perPower: 3, refineStep: 1 },
+  body: { label: "Corpo", itemName: "Camiseta do acampamento", stat: "healthPct", perPower: 1, refineStep: 1 },
+  hands: { label: "Mãos", itemName: "Luvas de trabalho", stat: "craftExtraPct", perPower: 0.25, refineStep: 1 },
+  feet: { label: "Pés", itemName: "Botina", stat: "energyRegenPct", perPower: 0.5, refineStep: 1 },
+  tool: { label: "Ferramenta", stat: "productionPct", perPower: 1, refineStep: 1 },
+  weapon: { label: "Arma", stat: "damagePct", perPower: 1, refineStep: 2 },
+  pin: { label: "Broche", itemName: "Broche da chama", stat: "donationProgressPct", perPower: 0.3, refineStep: 1 },
+  bracelet: { label: "Pulseira", itemName: "Pulseira de miçangas", stat: "specialChargePct", perPower: 0.5, refineStep: 1 },
+};
+export const SLOT_KEYS = Object.keys(SLOTS) as SlotKey[];
+
+export const REFINE = {
+  maxLevel: 10,
+  /** Cost to refine from +r to +(r+1): ceil(value × (r + 1)) of each resource. */
+  costPerLevel: { iron_bar: 2, tool: 0.5 } as Bag,
+} as const;
+
+export const BAG = {
+  slotsPerPage: 24,
+  /** Level needed to open each page of the backpack. */
+  pageUnlockLevels: [1, 1, 15] as const,
+} as const;
