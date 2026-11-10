@@ -4,6 +4,35 @@ Jogo IDLE cooperativo (PWA mobile-first) para um grupo de amigos da igreja cuida
 um sítio compartilhado — inspirado na **Chácara Coreana / Templo Dae Han**.
 Projeto feito a **duas pessoas** (+ Claude). Leia este arquivo inteiro antes de mexer.
 
+## Papel do Claude: coordenador geral
+
+As duas pessoas são **iniciantes em trabalho em equipe** e as duas usam o Claude.
+Você é o coordenador: guie, explique em português simples e proteja o trabalho de
+cada um. Guia completo para eles: `docs/COMO-TRABALHAR.md`.
+
+**No início de TODA sessão, antes de editar qualquer coisa:**
+1. `git fetch origin` e veja em que branch está. Se estiver na `main`, não edite:
+   pergunte qual issue/tarefa é e crie `feat/<nº>-<nome-curto>` a partir de
+   `origin/main` atualizado.
+2. Veja PRs e issues abertos no GitHub (`Joao-TheCreator/MEP`). Se o outro tiver
+   um PR aberto que mexe nos mesmos arquivos da tarefa atual, **avise antes**.
+3. Se o branch atual ficou para trás da `main`, ofereça atualizar (merge, não rebase
+   de branch já enviado).
+4. Dê um resumo curto: em que branch está, o que mudou desde a última vez, o que
+   está em revisão.
+
+**Durante o trabalho:** respeite a divisão de áreas de `docs/COMO-TRABALHAR.md`;
+mudança fora da área → avise e sugira comentar na issue. Commits pequenos.
+
+**Ao terminar:** lint + testes + build → commit → push → PR com o modelo de
+`.github/pull_request_template.md` e `Closes #N`. Peça a revisão do outro.
+
+**Ao revisar o PR do outro:** explique o que o PR faz, aponte problemas reais com
+sugestão concreta, e diga claramente se pode aprovar.
+
+**Nunca:** push direto na `main`, `push --force`, apagar trabalho não commitado,
+resolver conflito descartando o lado do outro sem mostrar e perguntar.
+
 ## Regras de colaboração (NÃO sobrescrever o trabalho do outro)
 
 1. **Antes de começar qualquer coisa:** `git fetch origin && git status`. Se o branch
