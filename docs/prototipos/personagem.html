@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Personagem do Sítio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;600&family=VT323&display=swap">
+<style>
+/* Layout: one landscape phone (844×390 logical px, scaled to fit). Rail | character + slots | tabbed panel. Nothing inside scrolls. */
+:root{
+  --bg:#2f4a2a; --paper:#f8ecd2; --paper-dark:#e9d7b0; --wood:#a8703f; --wood-dark:#6e4626;
+  --ink:#3b2630; --ink-soft:#6b5560; --wine:#8e2d52; --flame:#de4a47; --pink:#f0566a; --leaf:#4f8a3c; --sky:#6cc5d6; --good:#9fd36a;
+  --night:#24171d; --night2:#1d1217; --night3:#4a2f3a;
+  --display:"Pixelify Sans","Courier New",monospace; --body:"VT323","Courier New",monospace;
+  color-scheme:light;
+}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--body);font-size:20px;line-height:1.2;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 32px}
+.wrap{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{font-family:var(--display);font-weight:600;font-size:28px;color:var(--paper);margin:0;text-wrap:balance}
+.lead{color:var(--paper-dark);margin:2px 0 0;max-width:70ch}
+.frame{width:100%;max-width:880px;margin:0 auto;padding:10px;background:var(--ink);border-radius:22px;box-shadow:0 0 0 3px var(--wood-dark),0 8px 0 3px rgba(0,0,0,.25)}
+.fit{position:relative;width:100%;aspect-ratio:844/390;overflow:hidden;border-radius:12px}
+.app{position:absolute;left:0;top:0;width:844px;height:390px;transform-origin:0 0;display:grid;grid-template-columns:62px 300px minmax(0,1fr);grid-template-rows:38px minmax(0,1fr);background:var(--paper);font-size:17px}
+/* top bar */
+.top{grid-column:1/-1;white-space:nowrap;display:flex;align-items:center;gap:14px;padding:0 12px;background:var(--ink);color:var(--paper);font-family:var(--display);font-size:13px}
+.top .farm{color:var(--paper-dark)} .top .farm b{color:var(--pink);font-weight:500}
+.top .me{display:flex;align-items:center;gap:8px}
+.top canvas{image-rendering:pixelated;width:26px;height:28px;background:var(--paper-dark)}
+.top .sp{flex:1}
+.mbar{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--paper-dark)}
+.mbar .bar{width:86px}
+.bar{position:relative;height:9px;background:#fff8e8;box-shadow:inset 0 0 0 2px var(--wood-dark)}
+.bar>i{position:absolute;left:2px;top:2px;bottom:2px;background:var(--leaf)}
+.bar.xp>i{background:var(--pink)} .bar.en>i{background:var(--sky)}
+.cur{display:flex;align-items:center;gap:4px} .cur canvas{width:14px;height:14px;background:none}
+/* rail */
+.rail{background:var(--ink);display:flex;flex-direction:column;gap:2px;padding:6px 6px 8px}
+.rail span{font-family:var(--display);font-size:10px;color:var(--paper-dark);text-align:center;padding:9px 0 8px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.rail span i{width:20px;height:20px;background:var(--night3);display:block;box-shadow:inset 0 0 0 2px var(--wood-dark)}
+.rail span.on{color:#fff;background:var(--night3);box-shadow:inset 3px 0 0 var(--pink)}
+.rail span.on i{background:var(--pink)}
+/* character */
+.eq{background:radial-gradient(circle at 50% 44%,#5a3348 0,#3b2630 48%,var(--night) 100%);display:flex;flex-direction:column;padding:8px 8px 8px;gap:6px;box-shadow:inset -3px 0 0 var(--wood-dark)}
+.eq-body{flex:1;min-height:0;display:grid;grid-template-columns:46px minmax(0,1fr) 46px;gap:4px;align-items:center}
+.slots{display:flex;flex-direction:column;gap:5px}
+.slot{position:relative;width:46px;height:46px;border:0;padding:0;cursor:pointer;background:var(--night2);box-shadow:inset 0 0 0 2px var(--wood-dark),inset 0 0 0 3px var(--night2),inset 0 0 0 4px var(--night3);display:grid;place-items:center}
+.slot canvas{image-rendering:pixelated;width:32px;height:32px}
+.slot.empty canvas{opacity:.25;filter:grayscale(1) brightness(1.6)}
+.slot .lab{position:absolute;bottom:1px;left:0;right:0;font-family:var(--display);font-size:7px;letter-spacing:.03em;text-transform:uppercase;color:#bfa9b3;text-align:center}
+.slot:not(.empty) .lab{display:none}
+.slot.sel{box-shadow:inset 0 0 0 2px var(--pink),inset 0 0 0 4px var(--night2)}
+.up{position:absolute;top:1px;left:2px;width:0;height:0;border:5px solid transparent;border-bottom:7px solid var(--good);border-top:0;filter:drop-shadow(0 1px 0 #000)}
+.plus{position:absolute;right:2px;bottom:0;font-family:var(--display);font-size:11px;color:#fff;text-shadow:1px 1px 0 #000,-1px 1px 0 #000,1px -1px 0 #000,-1px -1px 0 #000}
+.stagec{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.ring{position:absolute;top:8%;left:50%;transform:translateX(-50%);width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(240,86,106,.3),rgba(240,86,106,0) 70%)}
+.stagec canvas{image-rendering:pixelated;position:relative}
+.turn{display:flex;gap:6px;position:relative}
+.turn button{font-family:var(--display);font-size:12px;border:0;width:28px;height:22px;cursor:pointer;background:var(--night3);color:var(--paper);box-shadow:inset 0 0 0 2px var(--wood-dark)}
+.power{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.power span{font-family:var(--display);font-size:10px;color:var(--paper);background:var(--night2);padding:3px 5px;box-shadow:inset 0 0 0 1px var(--wood-dark);display:flex;justify-content:space-between}
+.power b{color:var(--good);font-weight:500}
+.best{font-family:var(--display);font-size:12px;border:0;padding:6px;cursor:pointer;background:var(--leaf);color:#fff;box-shadow:inset 0 -3px 0 #2f5c25}
+.best:disabled{background:var(--night3);color:#bfa9b3;box-shadow:none;cursor:default}
+/* panel */
+.panel{display:flex;flex-direction:column;min-width:0;min-height:0}
+.ptabs{display:flex;background:var(--paper-dark)}
+.ptabs button{font-family:var(--display);font-size:13px;border:0;background:none;color:var(--ink-soft);padding:8px 14px;cursor:pointer;position:relative}
+.ptabs button[aria-selected="true"]{color:var(--wine);background:var(--paper);box-shadow:inset 0 -3px 0 var(--wine)}
+.ptabs .dot{position:absolute;top:5px;right:4px;width:7px;height:7px;background:var(--flame);border-radius:50%}
+.ptabs .sp{flex:1}
+.pbody{flex:1;min-height:0;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+button:focus-visible{outline:3px solid var(--flame);outline-offset:-2px}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) 168px;gap:10px;flex:1;min-height:0}
+.pts{display:flex;justify-content:space-between;font-family:var(--display);font-size:12px;background:var(--wine);color:var(--paper);padding:4px 8px}
+.attrs{display:flex;flex-direction:column;gap:4px}
+.attr{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:6px;align-items:center;padding:3px 6px;background:#fff8e8;box-shadow:inset 0 0 0 2px var(--paper-dark)}
+.attr .ab{font-family:var(--display);font-size:11px;color:var(--paper);background:var(--ink);text-align:center;padding:4px 0}
+.attr .an{font-family:var(--display);font-size:12px}
+.attr .ad{font-size:14px;color:var(--ink-soft);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctl{display:flex;align-items:center;gap:4px}
+.ctl output{font-family:var(--display);font-size:14px;min-width:20px;text-align:center;font-variant-numeric:tabular-nums}
+.pm{width:24px;height:24px;border:0;font-family:var(--display);font-size:14px;cursor:pointer;background:var(--paper-dark);color:var(--ink);box-shadow:inset 0 0 0 2px var(--wood-dark)}
+.pm.add{background:var(--flame);color:#fff;box-shadow:none}
+.pm:disabled{opacity:.3;cursor:default}
+.sums{display:flex;flex-direction:column;gap:2px;font-size:14px}
+.sums h4{font-family:var(--display);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--wine);margin:2px 0 0}
+.sums div{display:flex;justify-content:space-between;background:#fff8e8;padding:1px 5px;line-height:1.15}
+.sums b{font-family:var(--display);font-weight:500;font-size:11px;color:var(--leaf);font-variant-numeric:tabular-nums}
+.sums b.zero{color:var(--ink-soft)}
+.tree{display:grid;grid-template-columns:44px 1fr 1fr;gap:4px 6px;align-items:stretch}
+.tlv{font-family:var(--display);font-size:11px;color:var(--ink-soft);display:flex;flex-direction:column;justify-content:center;align-items:center;background:var(--paper-dark);line-height:1.1;text-align:center}
+.tlv b{font-size:15px;color:var(--ink);font-weight:500}
+.tal{font:inherit;text-align:left;border:0;cursor:pointer;padding:5px 7px;background:#fff8e8;color:var(--ink);box-shadow:inset 0 0 0 2px var(--paper-dark);display:flex;flex-direction:column;gap:1px}
+.tal .tn{font-family:var(--display);font-size:12px}
+.tal .td{font-size:14px;color:var(--ink-soft);line-height:1}
+.tal[aria-pressed="true"]{background:var(--wine);color:var(--paper);box-shadow:none}
+.tal[aria-pressed="true"] .td{color:var(--paper-dark)}
+.tal:disabled{opacity:.42;cursor:default}
+.thead{font-family:var(--display);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);text-align:center}
+.bagwrap{display:grid;grid-template-columns:minmax(0,1fr) 196px;gap:8px;flex:1;min-height:0}
+.bagl{display:flex;flex-direction:column;gap:5px;background:var(--night);padding:6px;box-shadow:inset 0 0 0 2px var(--wood-dark)}
+.btabs{display:flex;gap:3px;align-items:center}
+.btabs button{font-family:var(--display);font-size:11px;min-width:26px;height:20px;border:0;cursor:pointer;background:var(--night2);color:#bfa9b3;box-shadow:inset 0 0 0 2px var(--night3)}
+.btabs button[aria-selected="true"]{background:var(--night3);color:#fff;box-shadow:inset 0 0 0 2px var(--wood)}
+.btabs button:disabled{opacity:.5;cursor:default}
+.btabs .t{font-family:var(--display);font-size:11px;color:var(--paper);margin-right:auto}
+.grid{display:grid;grid-template-columns:repeat(8,1fr);gap:3px}
+.cell{position:relative;aspect-ratio:1;border:0;padding:0;cursor:pointer;background:var(--night2);box-shadow:inset 0 0 0 2px #3a262f;display:grid;place-items:center}
+.cell canvas{image-rendering:pixelated;width:70%;height:70%}
+.cell.sel{box-shadow:inset 0 0 0 2px var(--pink)}
+.cell:disabled{cursor:default}
+.cell .plus{font-size:9px}
+.det{background:#fff8e8;box-shadow:inset 0 0 0 2px var(--paper-dark);padding:7px;display:flex;flex-direction:column;gap:4px;font-size:14px;min-height:0}
+.dh{display:grid;grid-template-columns:40px minmax(0,1fr);gap:6px;align-items:center}
+.dh .ic{width:40px;height:40px;display:grid;place-items:center;position:relative}
+.dh .ic canvas{image-rendering:pixelated;width:30px;height:30px}
+.dn{font-family:var(--display);font-size:13px;line-height:1.05}
+.ds{font-size:13px;color:var(--ink-soft);line-height:1}
+.dv{display:flex;justify-content:space-between;background:var(--paper);padding:2px 5px}
+.dv b{font-family:var(--display);font-weight:500;font-size:11px;color:var(--leaf)}
+.dv b.bad{color:var(--flame)}
+.dbtn{font-family:var(--display);font-size:11px;border:0;padding:5px 6px;cursor:pointer;background:var(--flame);color:#fff;text-align:left;display:flex;justify-content:space-between;gap:4px}
+.dbtn.sec{background:var(--paper-dark);color:var(--ink);box-shadow:inset 0 0 0 2px var(--wood-dark)}
+.dbtn.go{background:var(--leaf)}
+.dbtn:disabled{opacity:.4;cursor:default}
+.dbtn small{font-family:var(--body);font-size:12px;opacity:.9}
+.warn{color:var(--flame);font-size:13px;line-height:1}
+.hint{font-size:13px;color:var(--ink-soft);line-height:1.05}
+.empty-det{display:flex;flex-direction:column;gap:6px;justify-content:center;flex:1;text-align:center;color:var(--ink-soft);font-size:14px}
+/* outside */
+.side{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.card{background:var(--paper);padding:14px;box-shadow:0 0 0 3px var(--wood),0 0 0 6px var(--wood-dark);display:flex;flex-direction:column;gap:8px;min-width:0}
+.card h2{font-family:var(--display);font-size:17px;margin:0}
+.card p{margin:0;font-size:18px}
+.sim{display:flex;flex-direction:column;gap:4px}
+.sim label{font-family:var(--display);font-size:13px;display:flex;justify-content:space-between}
+.sim input[type=range]{width:100%;accent-color:var(--wine)}
+.sim select{font-family:var(--body);font-size:18px;background:#fff8e8;color:var(--ink);border:2px solid var(--wood-dark)}
+.rot{display:none;color:var(--paper-dark);font-size:17px}
+@media (orientation:portrait) and (max-width:600px){.rot{display:block}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Personagem do Sítio Dae Han</h1>
+    <p class="lead">Prévia da aba nova com o celular deitado. Tudo cabe na tela: o personagem fica sempre à vista e o painel da direita troca entre Atributos, Habilidades e Mochila.</p>
+    <p class="rot">Gire o celular para ver em tamanho real.</p>
+  </header>
+  <div class="frame"><div class="fit" id="fit"><div class="app" id="app">
+    <div class="top">
+      <span class="farm">Sítio nv. <b>2</b></span>
+      <span class="me"><canvas id="avatar" aria-hidden="true"></canvas><span id="who"></span></span>
+      <span class="mbar">XP <span class="bar xp"><i id="xpbar"></i></span><span id="xpval"></span></span>
+      <span class="mbar">Energ. <span class="bar en"><i style="width:calc(72% - 4px)"></i></span>72</span>
+      <span class="sp"></span>
+      <span class="cur"><canvas id="coin" aria-hidden="true"></canvas><span id="coins"></span></span>
+      <span class="cur"><canvas id="ember" aria-hidden="true"></canvas><span id="embers"></span></span>
+    </div>
+    <nav class="rail" aria-hidden="true"><span><i></i>Sítio</span><span><i></i>Oficina</span><span class="on"><i></i>Perso&shy;nagem</span><span><i></i>Estoque</span><span><i></i>Ranking</span></nav>
+    <section class="eq" aria-label="Equipamento">
+      <div class="eq-body"><div class="slots" id="left"></div><div class="stagec" id="stage"></div><div class="slots" id="right"></div></div>
+      <div class="power" id="power"></div>
+      <button class="best" id="best" type="button"></button>
+    </section>
+    <section class="panel">
+      <div class="ptabs" role="tablist" aria-label="Seções do personagem">
+        <button role="tab" id="t-stats">Atributos</button>
+        <button role="tab" id="t-tree">Habilidades</button>
+        <button role="tab" id="t-bag">Mochila</button>
+        <span class="sp"></span>
+      </div>
+      <div class="pbody" id="pbody" role="tabpanel"></div>
+    </section>
+  </div></div></div>
+  <div class="side">
+    <section class="card">
+      <h2>Simular outro momento</h2>
+      <div class="sim">
+        <label for="lvl">Nível do personagem <output id="lvlOut"></output></label>
+        <input type="range" id="lvl" min="1" max="30" value="12">
+        <label for="prof">Profissão</label>
+        <select id="prof"></select>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Sem caçar item</h2>
+      <p>A seta verde marca o espaço que tem coisa melhor na mochila. <b>Equipar o melhor</b> troca tudo de uma vez. Na mochila, toque num item para ver quanto ele melhora.</p>
+    </section>
+    <section class="card">
+      <h2>O que é exemplo</h2>
+      <p>Itens, moedas, brasas e o estoque usado para refinar são exemplos. Os números de bônus, tiers e refino são os do <code>src/game/config.ts</code> (PR #20).</p>
+    </section>
+  </div>
+</div>
+<script>
+(() => {
+  var __defProp = Object.defineProperty;
+  var __returnValue = (v) => v;
+  function __exportSetter(name, newValue) {
+    this[name] = __returnValue.bind(null, newValue);
+  }
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, {
+        get: all[name],
+        enumerable: true,
+        configurable: true,
+        set: __exportSetter.bind(all, name)
+      });
+  };
+
+  // ../../../../../../home/claude/mep/src/game/config.ts
+  var exports_config = {};
+  __export(exports_config, {
+    ATTRIBUTES: () => ATTRIBUTES,
+    ATTRIBUTE_KEYS: () => ATTRIBUTE_KEYS,
+    BAG: () => BAG,
+    BONUS_CAPS: () => BONUS_CAPS,
+    BUILDINGS: () => BUILDINGS,
+    ENERGY: () => ENERGY,
+    FARM: () => FARM,
+    GEAR: () => GEAR,
+    LEVEL: () => LEVEL,
+    MAX_ATTRIBUTE_POINTS: () => MAX_ATTRIBUTE_POINTS,
+    MAX_FARM_LEVEL: () => MAX_FARM_LEVEL,
+    NIGHT_WEAPONS: () => NIGHT_WEAPONS,
+    PROFESSIONS: () => PROFESSIONS,
+    PROFESSION_KEYS: () => PROFESSION_KEYS,
+    RANKING_TIMEZONE: () => RANKING_TIMEZONE,
+    RECIPES: () => RECIPES,
+    RECIPE_KEYS: () => RECIPE_KEYS,
+    REFINE: () => REFINE,
+    RESOURCES: () => RESOURCES,
+    RESOURCE_KEYS: () => RESOURCE_KEYS,
+    SLOTS: () => SLOTS,
+    SLOT_KEYS: () => SLOT_KEYS,
+    TALENTS: () => TALENTS,
+    TIERS: () => TIERS,
+    TIER_KEYS: () => TIER_KEYS,
+    WORKSHOP: () => WORKSHOP,
+    WORK_TOOLS: () => WORK_TOOLS,
+    XP_PER_POINT: () => XP_PER_POINT
+  });
+
+  // ../../../../../../home/claude/mep/src/game/character.ts
+  var exports_character = {};
+  __export(exports_character, {
+    attributePointsEarned: () => attributePointsEarned,
+    attributePointsSpent: () => attributePointsSpent,
+    attributesError: () => attributesError,
+    bagPagesOpen: () => bagPagesOpen,
+    characterBonuses: () => characterBonuses,
+    chosenTalents: () => chosenTalents,
+    craftExtraUnits: () => craftExtraUnits,
+    emptyAttributes: () => emptyAttributes,
+    emptyBonuses: () => emptyBonuses,
+    equipBest: () => equipBest,
+    gearSuggestions: () => gearSuggestions,
+    gearUpgradeCost: () => gearUpgradeCost,
+    itemValue: () => itemValue,
+    itemWorksFor: () => itemWorksFor,
+    levelFromXp: () => levelFromXp,
+    nextTier: () => nextTier,
+    refineCost: () => refineCost,
+    talentTiersOpen: () => talentTiersOpen,
+    talentsError: () => talentsError,
+    tierIndex: () => tierIndex,
+    totalXpForLevel: () => totalXpForLevel,
+    xpFor: () => xpFor,
+    xpToNext: () => xpToNext
+  });
+
+  // ../../../../../../home/claude/mep/src/game/config.ts
+  var RESOURCES = {
+    grain: { name: "Grãos", emoji: "\uD83C\uDF3E", points: 1 },
+    milk: { name: "Leite", emoji: "\uD83E\uDD5B", points: 2 },
+    wood: { name: "Madeira", emoji: "\uD83E\uDEB5", points: 1 },
+    ore: { name: "Minério", emoji: "\uD83E\uDEA8", points: 2 },
+    feed: { name: "Ração", emoji: "\uD83C\uDF3D", points: 6 },
+    cheese: { name: "Queijo", emoji: "\uD83E\uDDC0", points: 10 },
+    plank: { name: "Tábua", emoji: "\uD83E\uDE9A", points: 4 },
+    iron_bar: { name: "Barra de ferro", emoji: "\uD83D\uDD29", points: 10 },
+    tool: { name: "Ferramenta", emoji: "\uD83D\uDEE0️", points: 29 }
+  };
+  var RESOURCE_KEYS = Object.keys(RESOURCES);
+  var PROFESSIONS = {
+    farmer: {
+      name: "Agricultor",
+      emoji: "\uD83D\uDC69‍\uD83C\uDF3E",
+      description: "Planta grãos e prepara ração para os animais.",
+      produces: "grain",
+      baseRatePerHour: 60,
+      workshop: { name: "Arado", baseCost: { plank: 20, tool: 2, grain: 100 } }
+    },
+    rancher: {
+      name: "Pecuarista",
+      emoji: "\uD83D\uDC04",
+      description: "Cuida dos animais, tira leite e faz queijo.",
+      produces: "milk",
+      baseRatePerHour: 30,
+      workshop: { name: "Curral", baseCost: { plank: 30, feed: 20, milk: 60 } }
+    },
+    carpenter: {
+      name: "Carpinteiro",
+      emoji: "\uD83E\uDE93",
+      description: "Corta madeira e serra tábuas para tudo no sítio.",
+      produces: "wood",
+      baseRatePerHour: 60,
+      workshop: { name: "Serraria", baseCost: { iron_bar: 5, tool: 3, wood: 100 } }
+    },
+    blacksmith: {
+      name: "Ferreiro",
+      emoji: "⚒️",
+      description: "Extrai minério e forja barras e ferramentas.",
+      produces: "ore",
+      baseRatePerHour: 30,
+      workshop: { name: "Forja", baseCost: { plank: 20, cheese: 10, ore: 60 } }
+    }
+  };
+  var PROFESSION_KEYS = Object.keys(PROFESSIONS);
+  var RECIPES = {
+    feed: { name: "Ração", profession: "farmer", inputs: { grain: 5 }, output: "feed" },
+    cheese: { name: "Queijo", profession: "rancher", inputs: { milk: 4 }, output: "cheese" },
+    plank: { name: "Tábua", profession: "carpenter", inputs: { wood: 3 }, output: "plank" },
+    iron_bar: {
+      name: "Barra de ferro",
+      profession: "blacksmith",
+      inputs: { ore: 3, wood: 2 },
+      output: "iron_bar"
+    },
+    tool: {
+      name: "Ferramenta",
+      profession: "blacksmith",
+      inputs: { iron_bar: 2, plank: 1 },
+      output: "tool"
+    }
+  };
+  var RECIPE_KEYS = Object.keys(RECIPES);
+  var WORKSHOP = {
+    maxLevel: 10,
+    bonusPercentPerLevel: 25,
+    costGrowth: 1.6
+  };
+  var FARM = {
+    bonusPercentPerLevel: 10,
+    baseStorageHours: 8,
+    maxMembers: 30
+  };
+  var BUILDINGS = [
+    {
+      key: "well",
+      name: "Poço Comunitário",
+      description: "Água para todo mundo. O sítio sobe para o nível 2 (+10% de produção).",
+      fromLevel: 1,
+      cost: { wood: 400, ore: 200, grain: 300, plank: 60 },
+      effect: {}
+    },
+    {
+      key: "barn",
+      name: "Celeiro",
+      description: "Mais espaço para guardar: armazém offline de 8 h para 12 h e +10% de produção.",
+      fromLevel: 2,
+      cost: { grain: 800, milk: 300, plank: 200, feed: 120, iron_bar: 60 },
+      effect: { storageHoursBonus: 4 }
+    },
+    {
+      key: "mill",
+      name: "Moinho",
+      description: "Moagem para o sítio inteiro. Sítio nível 4 (+10% de produção).",
+      fromLevel: 3,
+      cost: { plank: 300, feed: 300, cheese: 120, iron_bar: 100, tool: 40 },
+      effect: {}
+    }
+  ];
+  var MAX_FARM_LEVEL = BUILDINGS.length + 1;
+  var RANKING_TIMEZONE = "America/Sao_Paulo";
+  var BONUS_CAPS = {
+    productionPct: 100,
+    storageMinutes: 360,
+    craftExtraPct: 50,
+    donationProgressPct: 60,
+    energyRegenPct: 100,
+    damagePct: 200,
+    healthPct: 150,
+    attackSpeedPct: 80,
+    specialChargePct: 100,
+    healPct: 150
+  };
+  var LEVEL = {
+    maxLevel: 30,
+    baseXp: 100,
+    xpGrowth: 1.2,
+    attributePointsPerLevel: 1,
+    talentLevels: [5, 10, 15, 20]
+  };
+  var XP_PER_POINT = {
+    collect: 0.1,
+    craft: 0.5,
+    donate: 1
+  };
+  var ENERGY = {
+    max: 100,
+    regenPerHour: 10
+  };
+  var ATTRIBUTES = {
+    strength: {
+      name: "Força",
+      short: "FOR",
+      description: "Trabalha mais pesado de dia e bate mais forte à noite.",
+      perPoint: { productionPct: 1.5, damagePct: 3 }
+    },
+    endurance: {
+      name: "Resistência",
+      short: "RES",
+      description: "Aguenta mais tempo longe do jogo e apanha sem desmaiar.",
+      perPoint: { storageMinutes: 12, healthPct: 4 }
+    },
+    agility: {
+      name: "Agilidade",
+      short: "AGI",
+      description: "Recupera energia mais rápido e ataca mais rápido.",
+      perPoint: { energyRegenPct: 3, attackSpeedPct: 2 }
+    },
+    craft: {
+      name: "Ofício",
+      short: "OFI",
+      description: "Mão caprichada: às vezes fabrica em dobro. Carrega o poder especial mais rápido.",
+      perPoint: { craftExtraPct: 1.5, specialChargePct: 3 }
+    },
+    spirit: {
+      name: "Espírito",
+      short: "ESP",
+      description: "Anima o grupo: suas doações rendem mais na obra, e cura os amigos à noite.",
+      perPoint: { donationProgressPct: 2, healPct: 4 }
+    }
+  };
+  var ATTRIBUTE_KEYS = Object.keys(ATTRIBUTES);
+  var MAX_ATTRIBUTE_POINTS = 20;
+  var TALENTS = {
+    farmer: [
+      [
+        { key: "farmer.good-hand", name: "Mão boa", description: "+8% de produção.", bonus: { productionPct: 8 } },
+        { key: "farmer.big-harvest", name: "Colheita farta", description: "+60 min de armazém.", bonus: { storageMinutes: 60 } }
+      ],
+      [
+        { key: "farmer.fine-feed", name: "Ração caprichada", description: "+6% de chance de fabricar em dobro.", bonus: { craftExtraPct: 6 } },
+        { key: "farmer.first-fruits", name: "Primícias", description: "Suas doações rendem +6% na obra.", bonus: { donationProgressPct: 6 } }
+      ],
+      [
+        { key: "farmer.sun-to-sun", name: "De sol a sol", description: "+12% de produção.", bonus: { productionPct: 12 } },
+        { key: "farmer.work-party", name: "Mutirão", description: "Suas doações rendem +10% na obra.", bonus: { donationProgressPct: 10 } }
+      ],
+      [
+        { key: "farmer.record-crop", name: "Safra recorde", description: "+15% de produção e +60 min de armazém.", bonus: { productionPct: 15, storageMinutes: 60 } },
+        { key: "farmer.peoples-barn", name: "Celeiro do povo", description: "Suas doações rendem +15% na obra.", bonus: { donationProgressPct: 15 } }
+      ]
+    ],
+    rancher: [
+      [
+        { key: "rancher.early-milking", name: "Ordenha cedo", description: "+8% de produção.", bonus: { productionPct: 8 } },
+        { key: "rancher.wide-pasture", name: "Pasto largo", description: "+60 min de armazém.", bonus: { storageMinutes: 60 } }
+      ],
+      [
+        { key: "rancher.aged-cheese", name: "Queijo curado", description: "+6% de chance de fabricar em dobro.", bonus: { craftExtraPct: 6 } },
+        { key: "rancher.milk-for-all", name: "Leite pro vizinho", description: "Suas doações rendem +6% na obra.", bonus: { donationProgressPct: 6 } }
+      ],
+      [
+        { key: "rancher.full-pen", name: "Curral cheio", description: "+12% de produção.", bonus: { productionPct: 12 } },
+        { key: "rancher.cheese-fest", name: "Festa do queijo", description: "Suas doações rendem +10% na obra.", bonus: { donationProgressPct: 10 } }
+      ],
+      [
+        { key: "rancher.prize-herd", name: "Rebanho premiado", description: "+15% de produção e +60 min de armazém.", bonus: { productionPct: 15, storageMinutes: 60 } },
+        { key: "rancher.farm-dairy", name: "Leiteria do sítio", description: "Suas doações rendem +15% na obra.", bonus: { donationProgressPct: 15 } }
+      ]
+    ],
+    carpenter: [
+      [
+        { key: "carpenter.sharp-axe", name: "Machado afiado", description: "+8% de produção.", bonus: { productionPct: 8 } },
+        { key: "carpenter.woodpile", name: "Lenha estocada", description: "+60 min de armazém.", bonus: { storageMinutes: 60 } }
+      ],
+      [
+        { key: "carpenter.fine-saw", name: "Serra fina", description: "+6% de chance de fabricar em dobro.", bonus: { craftExtraPct: 6 } },
+        { key: "carpenter.main-beam", name: "Viga mestra", description: "Suas doações rendem +6% na obra.", bonus: { donationProgressPct: 6 } }
+      ],
+      [
+        { key: "carpenter.deep-woods", name: "Mata adentro", description: "+12% de produção.", bonus: { productionPct: 12 } },
+        { key: "carpenter.fence-party", name: "Mutirão da cerca", description: "Suas doações rendem +10% na obra.", bonus: { donationProgressPct: 10 } }
+      ],
+      [
+        { key: "carpenter.master", name: "Mestre carpinteiro", description: "+15% de produção e +60 min de armazém.", bonus: { productionPct: 15, storageMinutes: 60 } },
+        { key: "carpenter.architect", name: "Arquiteto do sítio", description: "Suas doações rendem +15% na obra.", bonus: { donationProgressPct: 15 } }
+      ]
+    ],
+    blacksmith: [
+      [
+        { key: "blacksmith.firm-pick", name: "Picareta firme", description: "+8% de produção.", bonus: { productionPct: 8 } },
+        { key: "blacksmith.deep-vein", name: "Veio fundo", description: "+60 min de armazém.", bonus: { storageMinutes: 60 } }
+      ],
+      [
+        { key: "blacksmith.hot-forge", name: "Forja quente", description: "+6% de chance de fabricar em dobro.", bonus: { craftExtraPct: 6 } },
+        { key: "blacksmith.gift-tool", name: "Ferramenta de presente", description: "Suas doações rendem +6% na obra.", bonus: { donationProgressPct: 6 } }
+      ],
+      [
+        { key: "blacksmith.tireless-anvil", name: "Bigorna incansável", description: "+12% de produção.", bonus: { productionPct: 12 } },
+        { key: "blacksmith.peoples-smith", name: "Ferreiro do povo", description: "Suas doações rendem +10% na obra.", bonus: { donationProgressPct: 10 } }
+      ],
+      [
+        { key: "blacksmith.master", name: "Mestre ferreiro", description: "+15% de produção e +60 min de armazém.", bonus: { productionPct: 15, storageMinutes: 60 } },
+        { key: "blacksmith.temple-steel", name: "Aço do templo", description: "Suas doações rendem +15% na obra.", bonus: { donationProgressPct: 15 } }
+      ]
+    ]
+  };
+  var TIERS = {
+    wood: { name: "Madeira", power: 0, color: "#a8703f" },
+    bronze: { name: "Bronze", power: 4, color: "#c07a3a" },
+    iron: { name: "Ferro", power: 8, color: "#8d887d" },
+    silver: { name: "Prata", power: 13, color: "#c9ced6" },
+    gold: { name: "Ouro", power: 19, color: "#e2b33c" },
+    diamond: { name: "Diamante", power: 26, color: "#6cc5d6" },
+    ember: { name: "Brasa", power: 34, color: "#de4a47", locked: true }
+  };
+  var TIER_KEYS = Object.keys(TIERS);
+  var GEAR = {
+    baseUpgradeCost: { plank: 10, iron_bar: 4, tool: 1 },
+    upgradeCostGrowth: 1.9
+  };
+  var WORK_TOOLS = {
+    farmer: { name: "Enxada" },
+    rancher: { name: "Balde" },
+    carpenter: { name: "Machado" },
+    blacksmith: { name: "Martelo" }
+  };
+  var NIGHT_WEAPONS = {
+    volley: { className: "Jogador de vôlei", name: "Bola de vôlei" },
+    mattress: { className: "Colchonete", name: "Colchonete" },
+    guitar: { className: "Violão", name: "Violão" },
+    cook: { className: "Cozinheira", name: "Concha" },
+    lantern: { className: "Lanterna", name: "Lanterna" }
+  };
+  var SLOTS = {
+    hat: { label: "Cabeça", itemName: "Chapéu de palha", stat: "storageMinutes", perPower: 3, refineStep: 1 },
+    body: { label: "Corpo", itemName: "Camiseta do acampamento", stat: "healthPct", perPower: 1, refineStep: 1 },
+    hands: { label: "Mãos", itemName: "Luvas de trabalho", stat: "craftExtraPct", perPower: 0.25, refineStep: 1 },
+    feet: { label: "Pés", itemName: "Botina", stat: "energyRegenPct", perPower: 0.5, refineStep: 1 },
+    tool: { label: "Ferramenta", stat: "productionPct", perPower: 1, refineStep: 1 },
+    weapon: { label: "Arma", stat: "damagePct", perPower: 1, refineStep: 2 },
+    pin: { label: "Broche", itemName: "Broche da chama", stat: "donationProgressPct", perPower: 0.3, refineStep: 1 },
+    bracelet: { label: "Pulseira", itemName: "Pulseira de miçangas", stat: "specialChargePct", perPower: 0.5, refineStep: 1 }
+  };
+  var SLOT_KEYS = Object.keys(SLOTS);
+  var REFINE = {
+    maxLevel: 10,
+    costPerLevel: { iron_bar: 2, tool: 0.5 }
+  };
+  var BAG = {
+    slotsPerPage: 24,
+    pageUnlockLevels: [1, 1, 15]
+  };
+
+  // ../../../../../../home/claude/mep/src/game/character.ts
+  function xpToNext(level) {
+    if (level >= LEVEL.maxLevel)
+      return null;
+    return Math.round(LEVEL.baseXp * Math.pow(LEVEL.xpGrowth, level - 1));
+  }
+  function totalXpForLevel(level) {
+    let sum = 0;
+    for (let l = 1;l < Math.min(level, LEVEL.maxLevel); l++)
+      sum += xpToNext(l);
+    return sum;
+  }
+  function levelFromXp(totalXp) {
+    let level = 1;
+    let rest = Math.max(0, Math.floor(totalXp));
+    for (;; ) {
+      const need = xpToNext(level);
+      if (need === null)
+        return { level, xpIntoLevel: 0, xpForNext: null };
+      if (rest < need)
+        return { level, xpIntoLevel: rest, xpForNext: need };
+      rest -= need;
+      level++;
+    }
+  }
+  function xpFor(action, points) {
+    return Math.floor(points * XP_PER_POINT[action]);
+  }
+  function emptyAttributes() {
+    return Object.fromEntries(ATTRIBUTE_KEYS.map((k) => [k, 0]));
+  }
+  function attributePointsEarned(level) {
+    return (Math.min(level, LEVEL.maxLevel) - 1) * LEVEL.attributePointsPerLevel;
+  }
+  function attributePointsSpent(attrs) {
+    return ATTRIBUTE_KEYS.reduce((s, k) => s + attrs[k], 0);
+  }
+  function attributesError(attrs, level) {
+    for (const k of ATTRIBUTE_KEYS) {
+      const v = attrs[k];
+      if (!Number.isInteger(v) || v < 0)
+        return `${ATTRIBUTES[k].name} inválida.`;
+      if (v > MAX_ATTRIBUTE_POINTS)
+        return `${ATTRIBUTES[k].name} vai até ${MAX_ATTRIBUTE_POINTS}.`;
+    }
+    if (attributePointsSpent(attrs) > attributePointsEarned(level))
+      return "Pontos de atributo insuficientes.";
+    return null;
+  }
+  function talentTiersOpen(level) {
+    return LEVEL.talentLevels.filter((l) => level >= l).length;
+  }
+  function talentsError(profession, picks, level) {
+    const tree = TALENTS[profession];
+    if (picks.length > tree.length)
+      return "Talento inválido.";
+    const open = talentTiersOpen(level);
+    for (let i = 0;i < picks.length; i++) {
+      const p = picks[i];
+      if (p === null)
+        continue;
+      if (p !== 0 && p !== 1)
+        return "Talento inválido.";
+      if (i >= open)
+        return `Esse talento abre no nível ${LEVEL.talentLevels[i]}.`;
+    }
+    return null;
+  }
+  function chosenTalents(profession, picks) {
+    const tree = TALENTS[profession];
+    return picks.flatMap((p, i) => p === null || !tree[i] ? [] : [tree[i][p]]);
+  }
+  function tierIndex(tier) {
+    return TIER_KEYS.indexOf(tier);
+  }
+  function nextTier(tier) {
+    return TIER_KEYS[tierIndex(tier) + 1] ?? null;
+  }
+  function gearUpgradeCost(tier) {
+    const next = nextTier(tier);
+    if (!next || TIERS[next].locked)
+      return null;
+    const factor = Math.pow(GEAR.upgradeCostGrowth, tierIndex(tier));
+    const out = {};
+    for (const [k, v] of Object.entries(GEAR.baseUpgradeCost)) {
+      out[k] = Math.ceil(Math.round(v * factor * 1e6) / 1e6);
+    }
+    return out;
+  }
+  function itemValue(item) {
+    const s = SLOTS[item.slot];
+    return Math.round(s.perPower * (TIERS[item.tier].power + item.refine * s.refineStep) * 100) / 100;
+  }
+  function itemWorksFor(item, profession) {
+    return item.slot !== "tool" || item.kind === profession;
+  }
+  function refineCost(refine) {
+    if (refine >= REFINE.maxLevel)
+      return null;
+    const out = {};
+    for (const [k, v] of Object.entries(REFINE.costPerLevel))
+      out[k] = Math.ceil(v * (refine + 1));
+    return out;
+  }
+  function gearSuggestions(loadout, bag, profession) {
+    const out = [];
+    for (const slot of SLOT_KEYS) {
+      const cur = loadout[slot];
+      const curValue = cur && itemWorksFor(cur, profession) ? itemValue(cur) : 0;
+      let best = null;
+      bag.forEach((it, i) => {
+        if (!it || it.slot !== slot || !itemWorksFor(it, profession))
+          return;
+        const gain = Math.round((itemValue(it) - curValue) * 100) / 100;
+        if (gain > 0 && (!best || gain > best.gain))
+          best = { slot, bagIndex: i, gain };
+      });
+      if (best)
+        out.push(best);
+    }
+    return out;
+  }
+  function equipBest(loadout, bag, profession) {
+    const next = { ...loadout };
+    const nextBag = [...bag];
+    for (const s of gearSuggestions(loadout, bag, profession)) {
+      const old = next[s.slot] ?? null;
+      next[s.slot] = nextBag[s.bagIndex];
+      nextBag[s.bagIndex] = old;
+    }
+    return { loadout: next, bag: nextBag };
+  }
+  var BONUS_KEYS = Object.keys(BONUS_CAPS);
+  function emptyBonuses() {
+    return Object.fromEntries(BONUS_KEYS.map((k) => [k, 0]));
+  }
+  function characterBonuses(build) {
+    const total = emptyBonuses();
+    const add = (bag, times = 1) => {
+      for (const [k, v] of Object.entries(bag))
+        total[k] += v * times;
+    };
+    for (const k of ATTRIBUTE_KEYS)
+      add(ATTRIBUTES[k].perPoint, build.attributes[k]);
+    for (const t of chosenTalents(build.profession, build.talents))
+      add(t.bonus);
+    for (const item of Object.values(build.gear)) {
+      if (item && itemWorksFor(item, build.profession))
+        total[SLOTS[item.slot].stat] += itemValue(item);
+    }
+    for (const k of BONUS_KEYS)
+      total[k] = Math.min(BONUS_CAPS[k], Math.round(total[k] * 100) / 100);
+    return total;
+  }
+  function craftExtraUnits(times, craftExtraPct, roll) {
+    const expected = times * craftExtraPct / 100;
+    const whole = Math.floor(expected);
+    return whole + (roll < expected - whole ? 1 : 0);
+  }
+  function bagPagesOpen(level) {
+    return BAG.pageUnlockLevels.filter((l) => level >= l).length;
+  }
+
+  // entry.ts
+  globalThis.GAME = { C: exports_config, R: exports_character };
+})();
+
+</script>
+<script>window.SPRITES={"bust":{"rows":["....................",".......hHhhHh.......","......hHhHhhHhh.....",".....hhHhhHhHhhh....",".....ffhhhhhhhff....",".....ffkkkkkkkff....",".....fkkkkkkkkf.....",".....fhhhkkhhhf.....","....kfkkkkkkkkfK....","....kkkewkkkewKK....","....kkkekkkkekKK....",".....zkkkkKkkkz.....",".....zkkzzzzkkz.....",".....zzzZmmZzzz.....","......zzzzzzzz......",".......zzzzzz.......","........KKKK........","...tttttKkkKttttt...","..ttttttsssstttttt..","..ttttttsssstttttt..","..ttttttsssstttttt..","..ttttttSSSStttttt.."],"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a"}},"walk":{"down":[{"rows":["..................","......hHhhHh......",".....hHhHhhHhh....","....hhHhhHhHhhh...","....ffhhhhhhhff...","....ffkkkkkkkff...","....fkkkkkkkkf....","....fhhhkkhhhf....","...kfkkkkkkkkfK...","...kkkewkkkewKK...","...kkkekkkkekKK...","....zkkkkKkkkz....","....zkkzzzzkkz....","....zzzZmmZzzz....",".....zzzzzzzz.....","......zzzzzz......",".......KKKK.......",".....tttssttt.....","....stttssttts....","....stttssttts....","....stttssttts....","....ktttSStttk....",".....QQQQQQQQ.....","......qQ..qQ......","......qq..qq......","......nn..nn......"],"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a","q":"#3f4a66","Q":"#313a52","n":"#3a2a24","T":"#00000033"}},{"rows":["..................","......hHhhHh......",".....hHhHhhHhh....","....hhHhhHhHhhh...","....ffhhhhhhhff...","....ffkkkkkkkff...","....fkkkkkkkkf....","....fhhhkkhhhf....","...kfkkkkkkkkfK...","...kkkewkkkewKK...","...kkkekkkkekKK...","....zkkkkKkkkz....","....zkkzzzzkkz....","....zzzZmmZzzz....",".....zzzzzzzz.....","......zzzzzz......",".......KKKK.......",".....tttssttt.....","....stttssttts....","....stttssttts....","....ktttssttts....",".....tttSStttk....",".....QQQQQQQQ.....","......qQ..qQ......","......nn..qq......","..........nn......"],"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a","q":"#3f4a66","Q":"#313a52","n":"#3a2a24","T":"#00000033"}},{"rows":["..................","......hHhhHh......",".....hHhHhhHhh....","....hhHhhHhHhhh...","....ffhhhhhhhff...","....ffkkkkkkkff...","....fkkkkkkkkf....","....fhhhkkhhhf....","...kfkkkkkkkkfK...","...kkkewkkkewKK...","...kkkekkkkekKK...","....zkkkkKkkkz....","....zkkzzzzkkz....","....zzzZmmZzzz....",".....zzzzzzzz.....","......zzzzzz......",".......KKKK.......",".....tttssttt.....","....stttssttts....","....stttssttts....","....stttsstttk....","....ktttSSttt.....",".....QQQQQQQQ.....","......qQ..qQ......","......qq..nn......","......nn.........."],"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a","q":"#3f4a66","Q":"#313a52","n":"#3a2a24","T":"#00000033"}}],"up":[{"rows":["..................","......hHhhHh......",".....hHhHhhHhh....","....hhHhhHhHhhh...","....hhhhhhhhhhf...","....hhhhhhHhhhf...","....hHhhhhhhHh....","....hhhhhhhhhh....","...khhhhhHhhhhK...","...kHhhhhhhHhhK...","...khhHhhhhhhHK...","....hhhhHhhhhh....","....hhhhhhHhhh....","....hHhhhhhhHh....",".....hhHhhhhh.....","......KKKKKK......",".......KKKK.......",".....ssssssss.....","....ssssssssSs....","....ssssssssSs....","....ssssssssSs....","....kSSSSSSSSk....",".....QQQQQQQQ.....","......qQ..qQ......","......qq..qq......","......nn..nn......"],"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a","q":"#3f4a66","Q":"#313a52","n":"#3a2a24","T":"#00000033"}},{"rows":["..................","......hHhhHh......",".....hHhHhhHhh....","....hhHhhHhHhhh...","....hhhhhhhhhhf...","....hhhhhhHhhhf...","....hHhhhhhhHh....","....hhhhhhhhhh....","...khhhhhHhhhhK...","...kHhhhhhhHhhK...","...khhHhhhhhhHK...","....hhhhHhhhhh....","....hhhhhhHhhh....","....hHhhhhhhHh....",".....hhHhhhhh.....","......KKKKKK......",".......KKKK.......",".....ssssssss.....","....ssssssssSs....","....ssssssssSs....","....ksssssssSs....",".....SSSSSSSSk....",".....QQQQQQQQ.....","......qQ..qQ......","......nn..qq......","..........nn......"],"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a","q":"#3f4a66","Q":"#313a52","n":"#3a2a24","T":"#00000033"}},{"rows":["..................","......hHhhHh......",".....hHhHhhHhh....","....hhHhhHhHhhh...","....hhhhhhhhhhf...","....hhhhhhHhhhf...","....hHhhhhhhHh....","....hhhhhhhhhh....","...khhhhhHhhhhK...","...kHhhhhhhHhhK...","...khhHhhhhhhHK...","....hhhhHhhhhh....","....hhhhhhHhhh....","....hHhhhhhhHh....",".....hhHhhhhh.....","......KKKKKK......",".......KKKK.......",".....ssssssss.....","....ssssssssSs....","....ssssssssSs....","....ssssssssSk....","....kSSSSSSSS.....",".....QQQQQQQQ.....","......qQ..qQ......","......qq..nn......","......nn.........."],"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a","q":"#3f4a66","Q":"#313a52","n":"#3a2a24","T":"#00000033"}}],"right":[{"rows":["..................","......hHhhHh......",".....hHhHhhHhh....","....hhHhhHhHhhh...","....ffhhhhhhhff...","....hhhhhkkkkff...","....hHhhhkkkkk....","....hhhHhkhhhk....","...khhhhhkkkkk....","...kHhhhhKkwek....","...khhHhhKkkekk...","....hhhhHzkkkKk...","....hhhhhzzkzz....",".......kkzzzzm....",".......kkzzzz.....",".......KK.zzz.....",".......KKKK.......","......ssssss......","......sssssS......","......sssssS......","......sssssS......","......sskssS......","......QQQQQQ......",".......qqqq.......",".......qqqq.......",".......nnnnn......"],"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a","q":"#3f4a66","Q":"#313a52","n":"#3a2a24","T":"#00000033"}},{"rows":["..................","......hHhhHh......",".....hHhHhhHhh....","....hhHhhHhHhhh...","....ffhhhhhhhff...","....hhhhhkkkkff...","....hHhhhkkkkk....","....hhhHhkhhhk....","...khhhhhkkkkk....","...kHhhhhKkwek....","...khhHhhKkkekk...","....hhhhHzkkkKk...","....hhhhhzzkzz....",".......kkzzzzm....",".......kkzzzz.....",".......KK.zzz.....",".......KKKK.......","......ssssss......","......sssssS......","......sssssS......","......sssssS......","......sssksS......","......QQQQQQ......","......qq..QQ......","......qq..QQ......",".....nnn..nnn....."],"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a","q":"#3f4a66","Q":"#313a52","n":"#3a2a24","T":"#00000033"}},{"rows":["..................","......hHhhHh......",".....hHhHhhHhh....","....hhHhhHhHhhh...","....ffhhhhhhhff...","....hhhhhkkkkff...","....hHhhhkkkkk....","....hhhHhkhhhk....","...khhhhhkkkkk....","...kHhhhhKkwek....","...khhHhhKkkekk...","....hhhhHzkkkKk...","....hhhhhzzkzz....",".......kkzzzzm....",".......kkzzzz.....",".......KK.zzz.....",".......KKKK.......","......ssssss......","......sssssS......","......sssssS......","......sssssS......","......sksssS......","......QQQQQQ......","......qq..QQ......","......qq..QQ......",".....nnn..nnn....."],"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a","q":"#3f4a66","Q":"#313a52","n":"#3a2a24","T":"#00000033"}}],"left":[{"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a","q":"#3f4a66","Q":"#313a52","n":"#3a2a24","T":"#00000033"},"rows":["..................","......hHhhHh......","....hhHhhHhHh.....","...hhhHhHhhHhh....","...ffhhhhhhhff....","...ffkkkkhhhhh....","....kkkkkhhhHh....","....khhhkhHhhh....","....kkkkkhhhhhk...","....kewkKhhhhHk...","...kkekkKhhHhhk...","...kKkkkzHhhhh....","....zzkzzhhhhh....","....mzzzzkk.......",".....zzzzkk.......",".....zzz.KK.......",".......KKKK.......","......ssssss......","......Ssssss......","......Ssssss......","......Ssssss......","......Ssskss......","......QQQQQQ......",".......qqqq.......",".......qqqq.......","......nnnnn......."]},{"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a","q":"#3f4a66","Q":"#313a52","n":"#3a2a24","T":"#00000033"},"rows":["..................","......hHhhHh......","....hhHhhHhHh.....","...hhhHhHhhHhh....","...ffhhhhhhhff....","...ffkkkkhhhhh....","....kkkkkhhhHh....","....khhhkhHhhh....","....kkkkkhhhhhk...","....kewkKhhhhHk...","...kkekkKhhHhhk...","...kKkkkzHhhhh....","....zzkzzhhhhh....","....mzzzzkk.......",".....zzzzkk.......",".....zzz.KK.......",".......KKKK.......","......ssssss......","......Ssssss......","......Ssssss......","......Ssssss......","......Ssksss......","......QQQQQQ......","......QQ..qq......","......QQ..qq......",".....nnn..nnn....."]},{"colors":{"k":"#e3b48f","K":"#c4936f","h":"#231c1a","H":"#3d322e","o":"#231c1a","r":"#231c1a","g":"#231c1a","z":"#231c1a","Z":"#836855","p":"#f0566a","P":"#de4a47","f":"#836855","e":"#2a1d1d","w":"#fbf7ef","m":"#a65a55","b":"#ef9a94","s":"#f2f2f4","S":"#d4d4da","t":"#22232b","c":"#231c1a","C":"#231c1a","x":"#231c1a","q":"#3f4a66","Q":"#313a52","n":"#3a2a24","T":"#00000033"},"rows":["..................","......hHhhHh......","....hhHhhHhHh.....","...hhhHhHhhHhh....","...ffhhhhhhhff....","...ffkkkkhhhhh....","....kkkkkhhhHh....","....khhhkhHhhh....","....kkkkkhhhhhk...","....kewkKhhhhHk...","...kkekkKhhHhhk...","...kKkkkzHhhhh....","....zzkzzhhhhh....","....mzzzzkk.......",".....zzzzkk.......",".....zzz.KK.......",".......KKKK.......","......ssssss......","......Ssssss......","......Ssssss......","......Ssssss......","......Ssssks......","......QQQQQQ......","......QQ..qq......","......QQ..qq......",".....nnn..nnn....."]}]},"res":{"grain":{"colors":{"y":"#e8c15a","Y":"#c4963a","g":"#6fa84a","G":"#4f8a3c","m":"#f7f4ec","s":"#d8d3c6","k":"#de4a47","r":"#8e2d52","w":"#a8703f","W":"#c48b52","d":"#7d5029","o":"#b89466","O":"#957548","i":"#9aa3ad","I":"#6f7882","l":"#c3cad1","c":"#f2c84b","h":"#d9a52f","n":"#c9bfa8","N":"#a59a83","x":"#f0b23c"},"rows":[".....y......","..y.yYy.y...",".yYyyYyyYy..","..yYyyYyY...",".yYyYyyYyy..","..yyyYyYy...","...yYyYy....","....GgG.....","....YyY.....","....GgG.....","...G.g.G....","..G..g..G..."]},"milk":{"colors":{"y":"#e8c15a","Y":"#c4963a","g":"#6fa84a","G":"#4f8a3c","m":"#f7f4ec","s":"#d8d3c6","k":"#de4a47","r":"#8e2d52","w":"#a8703f","W":"#c48b52","d":"#7d5029","o":"#b89466","O":"#957548","i":"#9aa3ad","I":"#6f7882","l":"#c3cad1","c":"#f2c84b","h":"#d9a52f","n":"#c9bfa8","N":"#a59a83","x":"#f0b23c"},"rows":["....kkkk....","....kkkk....",".....ms.....","....mmms....","...mmmmms...","...mmmmms...","...rrrrrr...","...rmmmrr...","...rrrrrr...","...mmmmms...","...mmmmms...","....ssss...."]},"wood":{"colors":{"y":"#e8c15a","Y":"#c4963a","g":"#6fa84a","G":"#4f8a3c","m":"#f7f4ec","s":"#d8d3c6","k":"#de4a47","r":"#8e2d52","w":"#a8703f","W":"#c48b52","d":"#7d5029","o":"#b89466","O":"#957548","i":"#9aa3ad","I":"#6f7882","l":"#c3cad1","c":"#f2c84b","h":"#d9a52f","n":"#c9bfa8","N":"#a59a83","x":"#f0b23c"},"rows":["............","............",".dddddddooo.","dwwwwwwwoOOo","dWWWWWWWoOoO","dwwwwwwwoOOo",".dddddddooo.","..dddddddooo",".dwwwwwwwoOO",".dWWWWWWWoOo",".dwwwwwwwoOO","..ddddddd..."]},"ore":{"colors":{"y":"#e8c15a","Y":"#c4963a","g":"#6fa84a","G":"#4f8a3c","m":"#f7f4ec","s":"#d8d3c6","k":"#de4a47","r":"#8e2d52","w":"#a8703f","W":"#c48b52","d":"#7d5029","o":"#b89466","O":"#957548","i":"#9aa3ad","I":"#6f7882","l":"#c3cad1","c":"#f2c84b","h":"#d9a52f","n":"#c9bfa8","N":"#a59a83","x":"#f0b23c"},"rows":["............","............",".....nn.....","....nnnNN...","...nnlnnNN..","..nnnnnnINN.","..nnnilnnNN.",".nnnnnnnnNNN",".nnlnnnnInNN",".NnnnnnnnNNN","..NNNNNNNNN.","............"]},"feed":{"colors":{"y":"#e8c15a","Y":"#c4963a","g":"#6fa84a","G":"#4f8a3c","m":"#f7f4ec","s":"#d8d3c6","k":"#de4a47","r":"#8e2d52","w":"#a8703f","W":"#c48b52","d":"#7d5029","o":"#b89466","O":"#957548","i":"#9aa3ad","I":"#6f7882","l":"#c3cad1","c":"#f2c84b","h":"#d9a52f","n":"#c9bfa8","N":"#a59a83","x":"#f0b23c"},"rows":["....x.x.....","...xYxYx....","....YxY.....","...ooOoo....","..oooOooo...",".ooooooooo..",".oooxxxooO..",".ooxxYxxoO..",".oooxxxooO..",".ooooooooO..","..oooooOO...","............"]},"cheese":{"colors":{"y":"#e8c15a","Y":"#c4963a","g":"#6fa84a","G":"#4f8a3c","m":"#f7f4ec","s":"#d8d3c6","k":"#de4a47","r":"#8e2d52","w":"#a8703f","W":"#c48b52","d":"#7d5029","o":"#b89466","O":"#957548","i":"#9aa3ad","I":"#6f7882","l":"#c3cad1","c":"#f2c84b","h":"#d9a52f","n":"#c9bfa8","N":"#a59a83","x":"#f0b23c"},"rows":["............","............","........cc..","......ccccc.","....ccccccc.","..cccccccchh","cccccccchhhh","chhchhhhhhhh","chhhhhchhhhh","chhhhhhhhchh","chchhhhhhhhh","hhhhhhhhhhh."]},"plank":{"colors":{"y":"#e8c15a","Y":"#c4963a","g":"#6fa84a","G":"#4f8a3c","m":"#f7f4ec","s":"#d8d3c6","k":"#de4a47","r":"#8e2d52","w":"#a8703f","W":"#c48b52","d":"#7d5029","o":"#b89466","O":"#957548","i":"#9aa3ad","I":"#6f7882","l":"#c3cad1","c":"#f2c84b","h":"#d9a52f","n":"#c9bfa8","N":"#a59a83","x":"#f0b23c"},"rows":["............","............","............","WWWWWWWWWWWw","wwwwdwwwwwwd","dddddddddddd","............","WWWWWWWWWWWw","wwwwwwwdwwwd","dddddddddddd","............","............"]},"iron_bar":{"colors":{"y":"#e8c15a","Y":"#c4963a","g":"#6fa84a","G":"#4f8a3c","m":"#f7f4ec","s":"#d8d3c6","k":"#de4a47","r":"#8e2d52","w":"#a8703f","W":"#c48b52","d":"#7d5029","o":"#b89466","O":"#957548","i":"#9aa3ad","I":"#6f7882","l":"#c3cad1","c":"#f2c84b","h":"#d9a52f","n":"#c9bfa8","N":"#a59a83","x":"#f0b23c"},"rows":["............","............","............","............","...llllll...","..lllllliI..",".liiiiiiiII.","iiiiiiiiiIII","IIIIIIIIIIII","............","............","............"]},"tool":{"colors":{"y":"#e8c15a","Y":"#c4963a","g":"#6fa84a","G":"#4f8a3c","m":"#f7f4ec","s":"#d8d3c6","k":"#de4a47","r":"#8e2d52","w":"#a8703f","W":"#c48b52","d":"#7d5029","o":"#b89466","O":"#957548","i":"#9aa3ad","I":"#6f7882","l":"#c3cad1","c":"#f2c84b","h":"#d9a52f","n":"#c9bfa8","N":"#a59a83","x":"#f0b23c"},"rows":["............",".lliii......",".liiiiI.....","..IIiiII....","...I.dWd....","......dWd...",".......dWd..","........dWd.",".........dWd","..........dd","............","............"]}}};</script>
+<script>
+const { C, R } = window.GAME;
+const SP = window.SPRITES;
+const ICONS = {
+  farmer: ["............",".hhhhh......",".hHHHh......","...hhh......","....wW......",".....wW.....","......wW....",".......wW...","........wW..",".........wW.","..........w.","............"],
+  rancher: ["............","...kkkkkk...","..k......k..","..hhhhhhhh..","..hHHHHHHh..","..hhhhhhhh..","...hHHHHh...","...hhhhhh...","...hHHHHh...","....hhhh....","............","............"],
+  carpenter: ["............","....hhh.....","...hhhhh....","...hHHhhw...","....hhh.wW..",".......wW...","......wW....",".....wW.....","....wW......","...wW.......","..wW........","............"],
+  blacksmith: ["............","..hhhhhhh...","..hHHHHHh...","..hhhhhhh...",".....wW.....",".....wW.....",".....wW.....",".....wW.....",".....wW.....",".....wW.....",".....kk.....","............"],
+  volley: ["............","....hhhh....","..hhssshhh..","..hsssHhhh..",".hhssHhhsHh.",".hHHhhhssHh.",".hhhhhsssHh.",".hhhssssHHh.","..hhssHHhh..","..hhhHHhhh..","....hhhh....","............"],
+  mattress: ["............","............","..hhhhhhhh..",".hHHHHHHHHh.",".hhhhhhhhhh.",".hssssssssh.",".hhhhhhhhhh.",".hHHHHHHHHh.","..hhhhhhhh..","...k....k...","............","............"],
+  guitar: [".........kk.","........kw..",".......wW...","......wW....","....hhw.....","...hhHhh....","..hhHkHhh...","..hHkkkHh...","..hhHkHhh...","...hhHhh....","....hhh.....","............"],
+  cook: ["............",".........wW.","........wW..",".......wW...","......wW....",".....wW.....","..hhhh......",".hHHHHh.....",".hHsHHh.....",".hhHHhh.....","..hhhh......","............"],
+  lantern: ["....kkkk....","...k....k...","...hhhhhh...","...hssssh...","...hsHHsh...","...hsHHsh...","...hssssh...","...hhhhhh...","....hHHh....","............","............","............"],
+};
+function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(v * f)); return "#" + c.map(v => v.toString(16).padStart(2, "0")).join(""); }
+function drawGrid(canvas, rows, colors, scale) {
+  const h = rows.length, w = Math.max(...rows.map(r => r.length));
+  canvas.width = w * scale; canvas.height = h * scale; const x = canvas.getContext("2d");
+  rows.forEach((row, y) => { for (let i = 0; i < row.length; i++) { const ch = row[i]; if (ch === "." || ch === " " || !colors[ch]) continue; x.fillStyle = colors[ch]; x.fillRect(i * scale, y * scale, scale, scale); } });
+}
+function iconCanvas(key, tier, scale = 5) {
+  const col = C.TIERS[tier].color; const c = document.createElement("canvas");
+  drawGrid(c, ICONS[key], { h: col, H: shade(col, 0.72), s: "#fff8e8", w: "#8a5a2b", W: "#5e3b1c", k: "#3b2630" }, scale);
+  c.style.setProperty("--tier", col); return c;
+}
+function resIcon(r) { const c = document.createElement("canvas"); drawGrid(c, SP.res[r].rows, SP.res[r].colors, 1); c.style.width = "16px"; c.style.height = "16px"; c.style.imageRendering = "pixelated"; c.style.verticalAlign = "-3px"; return c; }
+Object.assign(ICONS, {
+  hat: ["............","............","....hhhh....","...hHHHHh...","...hhhhhh...","...kkkkkk...",".hhhhhhhhhh.","hHHHHHHHHHHh",".hhhhhhhhhh.","............","............","............"],
+  body: ["............","..hhh..hhh..",".hhhhkkhhhh.","hhhhhhhhhhhh","hhHhhhhhhHhh",".h.hhhhhh.h.","...hhhhhh...","...hHsshh...","...hhhhhh...","...hhhhhh...","...HHHHHH...","............"],
+  hands: ["............","....h.h.....","...hhhhh.h..","...hhhhhhh..","...hhhhhhh..","..hhhhhhhh..","..hhhhhhh...","...hhhhh....","...HHHHH....","...kkkkk....","............","............"],
+  feet: ["............","...hhhh.....","...hHHh.....","...hhhh.....","...hhhh.....","...hhhhh....","...hhhhhhh..","..hhhhhhhhh.","..HHHHHHHHH.","..kkkkkkkkk.","............","............"],
+  pin: ["............",".....h......","....hh......","....hhh.....","...hhHhh....","...hHsHh....","..hhHssHh...","..hHsssHh...","..hhHHHhh...","...hhhhh....","....kkk.....","............"],
+  bracelet: ["............","............","...hshhsh...","..h......h..",".s........s.",".h........h.",".h........h.","..s......s..","...hhshhh...","............","............","............"],
+  coin: ["..hhhh..",".hHHHHh.","hHhhhhHh","hHhssHHh","hHhssHHh","hHhhhhHh",".hHHHHh.","..hhhh.."],
+  ember: ["...h....","..hh....","..hhh...",".hhshh..",".hsssh..","hhsssh..",".hhhhh..","........"],
+  lock: ["..kkk...",".k...k..",".k...k..","hhhhhhh.","hhhkhhh.","hhhkhhh.","hhhhhhh.","........"],
+});
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+const fmt = (n) => (Math.round(n * 10) / 10).toLocaleString("pt-BR");
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// scale the 844×390 app to the frame
+const fit = document.getElementById("fit"), app = document.getElementById("app");
+const rescale = () => { app.style.transform = `scale(${fit.clientWidth / 844})`; };
+new ResizeObserver(rescale).observe(fit); rescale();
+
+const it = (slot, tier, refine = 0, kind) => ({ slot, tier, refine, kind });
+const st = {
+  level: 12, profession: "farmer", tab: "bag", dir: "down", page: 0, sel: null,
+  attributes: { strength: 4, endurance: 3, agility: 0, craft: 0, spirit: 4 }, talents: [0, 1],
+  equipped: { hat: it("hat", "gold", 4), body: it("body", "silver", 2), hands: it("hands", "bronze"), feet: it("feet", "iron", 6),
+    tool: it("tool", "silver", 4, "farmer"), weapon: it("weapon", "silver", 5, "guitar"), pin: null, bracelet: null },
+  bag: [
+    it("tool", "gold", 7, "farmer"), it("weapon", "bronze", 2, "volley"), it("pin", "gold", 9), it("bracelet", "diamond", 10),
+    it("hat", "iron", 1), it("body", "wood"), it("feet", "bronze"), it("tool", "iron", 3, "carpenter"),
+    it("weapon", "bronze", 0, "mattress"), it("hat", "wood"), it("body", "bronze", 1), it("tool", "bronze", 0, "blacksmith"),
+    ...Array(12).fill(null),
+    it("weapon", "silver", 3, "lantern"), it("feet", "silver", 0), it("pin", "bronze", 2), it("tool", "diamond", 2, "rancher"), ...Array(20).fill(null),
+    ...Array(24).fill(null),
+  ],
+  stock: { plank: 300, iron_bar: 120, tool: 30 }, coins: 1250, embers: 3,
+};
+const LEFT = ["hat", "body", "hands", "feet"], RIGHT = ["tool", "weapon", "pin", "bracelet"];
+const STAT_LABEL = { productionPct: ["produção", "%"], storageMinutes: ["armazém", " min"], craftExtraPct: ["fabricar em dobro", "%"],
+  energyRegenPct: ["energia por hora", "%"], damagePct: ["dano (noite)", "%"], healthPct: ["vida (noite)", "%"],
+  donationProgressPct: ["doação na obra", "%"], specialChargePct: ["carga do especial", "%"] };
+const itemName = (x) => x.slot === "tool" ? C.WORK_TOOLS[x.kind].name : x.slot === "weapon" ? C.NIGHT_WEAPONS[x.kind].name : C.SLOTS[x.slot].itemName;
+const works = (x) => R.itemWorksFor(x, st.profession);
+const tierBg = (t) => t === "wood" ? "var(--night2)" : `radial-gradient(circle at 50% 45%, ${shade(C.TIERS[t].color, .78)} 0, ${shade(C.TIERS[t].color, .3)} 70%, var(--night2) 100%)`;
+const icon = (x, size) => { const c = iconCanvas(x.slot === "tool" || x.slot === "weapon" ? x.kind : x.slot, x.tier, 4); c.style.width = size; c.style.height = size; return c; };
+const plus = (x) => x.refine ? el("span", "plus", "+" + x.refine) : null;
+const suggestions = () => R.gearSuggestions(st.equipped, st.bag, st.profession);
+const bonuses = () => R.characterBonuses({ profession: st.profession, attributes: st.attributes, talents: st.talents, gear: st.equipped });
+
+drawGrid(document.getElementById("avatar"), SP.bust.rows, SP.bust.colors, 2);
+drawGrid(document.getElementById("coin"), ICONS.coin, { h: "#e2b33c", H: "#b8862a", s: "#fff3b0" }, 2);
+drawGrid(document.getElementById("ember"), ICONS.ember, { h: "#de4a47", s: "#ffd27a" }, 2);
+
+// ---------- character side ----------
+let tick = 0; const walker = el("canvas");
+function drawWalker() { const f = reduced ? 0 : [0, 1, 0, 2][tick % 4]; const fr = SP.walk[st.dir][f]; drawGrid(walker, fr.rows, fr.colors, 5); }
+setInterval(() => { tick++; drawWalker(); }, 420);
+(function stage() {
+  const s = document.getElementById("stage"); s.append(el("div", "ring"), walker);
+  const turn = el("div", "turn"); const order = ["down", "left", "up", "right"];
+  const a = el("button", "", "◀"), b = el("button", "", "▶"); a.type = b.type = "button";
+  a.setAttribute("aria-label", "Girar para a esquerda"); b.setAttribute("aria-label", "Girar para a direita");
+  a.onclick = () => { st.dir = order[(order.indexOf(st.dir) + 3) % 4]; drawWalker(); };
+  b.onclick = () => { st.dir = order[(order.indexOf(st.dir) + 1) % 4]; drawWalker(); };
+  turn.append(a, b); s.append(turn); drawWalker();
+})();
+function slotBtn(slot, sugg) {
+  const x = st.equipped[slot]; const b = el("button", "slot" + (x ? "" : " empty")); b.type = "button";
+  if (st.sel && st.sel.where === "eq" && st.sel.slot === slot) b.classList.add("sel");
+  if (x) { b.style.background = tierBg(x.tier); b.append(icon(x, "32px")); const p = plus(x); if (p) b.append(p); }
+  else { const c = iconCanvas(slot === "tool" ? st.profession : slot === "weapon" ? "volley" : slot, "wood", 4); c.style.width = c.style.height = "32px"; b.append(c); }
+  b.append(el("span", "lab", C.SLOTS[slot].label));
+  if (sugg.some(s => s.slot === slot)) b.append(el("span", "up"));
+  b.setAttribute("aria-label", (x ? `${C.SLOTS[slot].label}: ${itemName(x)} de ${C.TIERS[x.tier].name}${x.refine ? " +" + x.refine : ""}` : `${C.SLOTS[slot].label}: vazio`) + (sugg.some(s => s.slot === slot) ? ". Tem melhor na mochila" : ""));
+  b.onclick = () => {
+    const s = sugg.find(s => s.slot === slot);
+    st.tab = "bag";
+    if (x) st.sel = { where: "eq", slot };
+    else if (s) { st.sel = { where: "bag", idx: s.bagIndex }; st.page = Math.floor(s.bagIndex / 24); }
+    else st.sel = null;
+    render();
+  };
+  return b;
+}
+function renderEq() {
+  const sugg = suggestions(), b = bonuses();
+  const l = document.getElementById("left"), r = document.getElementById("right");
+  l.replaceChildren(...LEFT.map(s => slotBtn(s, sugg))); r.replaceChildren(...RIGHT.map(s => slotBtn(s, sugg)));
+  const pw = document.getElementById("power");
+  const chip = (t, v) => { const s = el("span"); s.append(el("span", "", t), el("b", "", v)); return s; };
+  pw.replaceChildren(chip("Produção", "+" + fmt(b.productionPct) + "%"), chip("Armazém", "+" + fmt(b.storageMinutes) + "m"), chip("Dano", "+" + fmt(b.damagePct) + "%"), chip("Vida", "+" + fmt(b.healthPct) + "%"));
+  const best = document.getElementById("best");
+  best.textContent = sugg.length ? `▲ Equipar o melhor (${sugg.length})` : "Você já está com o melhor";
+  best.disabled = !sugg.length;
+  best.onclick = () => { const r2 = R.equipBest(st.equipped, st.bag, st.profession); st.equipped = r2.loadout; st.bag = r2.bag; st.sel = null; render(); };
+}
+
+// ---------- panels ----------
+function sumsBox(b) {
+  const box = el("div", "sums");
+  const p = C.PROFESSIONS[st.profession], res = C.RESOURCES[p.produces];
+  const line = (t, v, unit, zero) => { const d = el("div"); d.append(el("span", "", t), el("b", zero ? "zero" : "", v + unit)); return d; };
+  box.append(el("h4", "", "De dia"), line(`${res.name}/h`, `${p.baseRatePerHour}→${fmt(p.baseRatePerHour * (1 + b.productionPct / 100))}`, "", false));
+  for (const [k, t, u] of [["productionPct", "Produção", "%"], ["storageMinutes", "Armazém", " min"], ["craftExtraPct", "Em dobro", "%"], ["donationProgressPct", "Doação na obra", "%"], ["energyRegenPct", "Energia/h", "%"]]) box.append(line(t, "+" + fmt(b[k]), u, !b[k]));
+  box.append(el("h4", "", "À noite"));
+  for (const [k, t] of [["damagePct", "Dano"], ["healthPct", "Vida"], ["attackSpeedPct", "Velocidade"], ["specialChargePct", "Especial"], ["healPct", "Cura"]]) box.append(line(t, "+" + fmt(b[k]), "%", !b[k]));
+  return box;
+}
+function statsPanel(root) {
+  const earned = R.attributePointsEarned(st.level), free = earned - R.attributePointsSpent(st.attributes);
+  const row = el("div", "row2"); const left = el("div", "attrs");
+  const head = el("div", "pts"); head.append(el("span", "", "Pontos livres"), el("span", "", `${free} de ${earned}`)); left.append(head);
+  for (const k of C.ATTRIBUTE_KEYS) {
+    const a = C.ATTRIBUTES[k], v = st.attributes[k]; const card = el("div", "attr");
+    const mid = el("div"); mid.append(el("div", "an", a.name), el("div", "ad", a.description)); mid.style.minWidth = "0";
+    const ctl = el("div", "ctl");
+    const m = el("button", "pm", "−"); m.type = "button"; m.disabled = !v; m.setAttribute("aria-label", "Tirar ponto de " + a.name); m.onclick = () => { st.attributes[k]--; render(); };
+    const p = el("button", "pm add", "+"); p.type = "button"; p.disabled = !free || v >= C.MAX_ATTRIBUTE_POINTS; p.setAttribute("aria-label", "Pôr ponto em " + a.name); p.onclick = () => { st.attributes[k]++; render(); };
+    ctl.append(m, el("output", "", String(v)), p); card.append(el("span", "ab", a.short), mid, ctl); left.append(card);
+  }
+  row.append(left, sumsBox(bonuses())); root.append(row);
+}
+function treePanel(root) {
+  const open = R.talentTiersOpen(st.level), tree = C.TALENTS[st.profession];
+  const g = el("div", "tree");
+  g.append(el("span"), el("span", "thead", "Para mim"), el("span", "thead", "Para o grupo"));
+  tree.forEach((pair, i) => {
+    const lv = el("div", "tlv"); lv.append(document.createTextNode("Nível"), el("b", "", String(C.LEVEL.talentLevels[i]))); g.append(lv);
+    pair.forEach((t, j) => {
+      const b = el("button", "tal"); b.type = "button"; b.disabled = i >= open; b.setAttribute("aria-pressed", String(st.talents[i] === j));
+      b.append(el("span", "tn", t.name), el("span", "td", t.description));
+      b.onclick = () => { while (st.talents.length <= i) st.talents.push(null); st.talents[i] = st.talents[i] === j ? null : j; render(); };
+      g.append(b);
+    });
+  });
+  const pts = el("div", "pts"); pts.append(el("span", "", "Árvore do " + C.PROFESSIONS[st.profession].name), el("span", "", `${open} de ${tree.length} abertos`));
+  root.append(pts, g);
+}
+function costLine(cost) { return Object.entries(cost).map(([r, n]) => `${n} ${C.RESOURCES[r].name}`).join(" · "); }
+const canPay = (c) => Object.entries(c).every(([r, n]) => (st.stock[r] ?? 0) >= n);
+const pay = (c) => { for (const [r, n] of Object.entries(c)) st.stock[r] -= n; };
+function detail(sugg) {
+  const d = el("div", "det");
+  const x = !st.sel ? null : st.sel.where === "eq" ? st.equipped[st.sel.slot] : st.bag[st.sel.idx];
+  if (!x) {
+    const e = el("div", "empty-det");
+    e.append(el("div", "", sugg.length ? `Tem ${sugg.length} ${sugg.length > 1 ? "itens melhores" : "item melhor"} na mochila (seta verde).` : "Toque num item para ver o que ele faz."));
+    const s = el("div", "hint", `Estoque: ${costLine(st.stock)}`); e.append(s); d.append(e); return d;
+  }
+  const slot = C.SLOTS[x.slot], tier = C.TIERS[x.tier], [what, unit] = STAT_LABEL[slot.stat];
+  const h = el("div", "dh"); const ic = el("div", "ic"); ic.style.background = tierBg(x.tier); ic.style.boxShadow = `inset 0 0 0 2px ${tier.color}`; ic.append(icon(x, "30px")); const p = plus(x); if (p) ic.append(p);
+  const nm = el("div"); const n = el("div", "dn", itemName(x) + (x.refine ? " +" + x.refine : "")); n.style.color = shade(tier.color, .62);
+  nm.append(n, el("div", "ds", `${tier.name} · ${slot.label}${st.sel.where === "eq" ? " · equipado" : ""}`)); h.append(ic, nm); d.append(h);
+  const v = el("div", "dv"); v.append(el("span", "", what), el("b", "", "+" + fmt(R.itemValue(x)) + unit)); d.append(v);
+  if (st.sel.where === "bag") {
+    const cur = st.equipped[x.slot]; const curV = cur && works(cur) ? R.itemValue(cur) : 0; const diff = works(x) ? R.itemValue(x) - curV : -curV;
+    const cmp = el("div", "dv"); cmp.append(el("span", "", "vs. equipado"), el("b", diff >= 0 ? "" : "bad", (diff >= 0 ? "+" : "") + fmt(diff) + unit)); d.append(cmp);
+    if (!works(x)) d.append(el("div", "warn", `Só para ${C.PROFESSIONS[x.kind].name}.`));
+    const eb = el("button", "dbtn go", cur ? "Equipar (troca)" : "Equipar"); eb.type = "button"; eb.disabled = !works(x);
+    eb.onclick = () => { st.bag[st.sel.idx] = cur ?? null; st.equipped[x.slot] = x; st.sel = { where: "eq", slot: x.slot }; render(); };
+    d.append(eb);
+  } else {
+    const free = st.bag.findIndex((v, i) => !v && i < 24 * R.bagPagesOpen(st.level));
+    const ub = el("button", "dbtn sec", "Guardar na mochila"); ub.type = "button"; ub.disabled = free < 0;
+    ub.onclick = () => { st.bag[free] = x; st.equipped[x.slot] = null; st.sel = null; render(); }; d.append(ub);
+  }
+  const rc = R.refineCost(x.refine);
+  const rb = el("button", "dbtn"); rb.type = "button";
+  if (rc) { rb.append(el("span", "", `Refinar +${x.refine + 1}`), el("small", "", costLine(rc))); rb.disabled = !canPay(rc); rb.onclick = () => { pay(rc); x.refine++; render(); }; }
+  else { rb.textContent = "Refino máximo"; rb.disabled = true; }
+  d.append(rb);
+  const tc = R.gearUpgradeCost(x.tier), nx = R.nextTier(x.tier);
+  const tb = el("button", "dbtn sec"); tb.type = "button";
+  if (tc) { tb.append(el("span", "", `Subir p/ ${C.TIERS[nx].name}`), el("small", "", costLine(tc))); tb.disabled = !canPay(tc); tb.onclick = () => { pay(tc); x.tier = nx; render(); }; }
+  else { tb.textContent = nx ? "Brasa: precisa de Brasas" : "Tier máximo"; tb.disabled = true; }
+  d.append(tb);
+  return d;
+}
+function bagPanel(root, sugg) {
+  const wrap = el("div", "bagwrap"); const left = el("div", "bagl");
+  const tabs = el("div", "btabs"); tabs.append(el("span", "t", "Mochila"));
+  const pages = R.bagPagesOpen(st.level);
+  ["I", "II", "III"].forEach((n, i) => { const b = el("button", "", i < pages ? n : n + " 🔒"); b.type = "button"; b.setAttribute("aria-selected", String(st.page === i)); b.disabled = i >= pages; if (i >= pages) b.title = `Abre no nível ${C.BAG.pageUnlockLevels[i]}`; b.onclick = () => { st.page = i; st.sel = null; render(); }; tabs.append(b); });
+  const grid = el("div", "grid");
+  for (let i = 0; i < 24; i++) {
+    const idx = st.page * 24 + i, x = st.bag[idx]; const c = el("button", "cell"); c.type = "button";
+    if (x) {
+      c.style.background = tierBg(x.tier); c.append(icon(x, "70%")); const p = plus(x); if (p) c.append(p);
+      if (sugg.some(s => s.bagIndex === idx)) c.append(el("span", "up"));
+      if (st.sel && st.sel.where === "bag" && st.sel.idx === idx) c.classList.add("sel");
+      c.setAttribute("aria-label", `${itemName(x)} de ${C.TIERS[x.tier].name}${x.refine ? " +" + x.refine : ""}`);
+      c.onclick = () => { st.sel = { where: "bag", idx }; render(); };
+    } else { c.disabled = true; c.setAttribute("aria-label", "Vazio"); }
+    grid.append(c);
+  }
+  left.append(tabs, grid); wrap.append(left, detail(sugg)); root.append(wrap);
+}
+function render() {
+  const sugg = suggestions();
+  document.getElementById("who").textContent = `Rodrigo · ${C.PROFESSIONS[st.profession].name} · nv. ${st.level}`;
+  const need = R.xpToNext(st.level); document.getElementById("xpbar").style.width = need ? "calc(60% - 4px)" : "calc(100% - 4px)";
+  document.getElementById("xpval").textContent = need ? `${Math.round(need * .6)}/${need}` : "máx";
+  document.getElementById("coins").textContent = st.coins.toLocaleString("pt-BR"); document.getElementById("embers").textContent = st.embers;
+  document.getElementById("lvlOut").textContent = st.level;
+  for (const [id, t] of [["t-stats", "stats"], ["t-tree", "tree"], ["t-bag", "bag"]]) {
+    const b = document.getElementById(id); b.setAttribute("aria-selected", String(st.tab === t)); b.querySelector(".dot")?.remove();
+    if (t === "stats" && R.attributePointsEarned(st.level) > R.attributePointsSpent(st.attributes)) b.append(el("span", "dot"));
+    if (t === "bag" && sugg.length) b.append(el("span", "dot"));
+    if (t === "tree" && st.talents.filter(v => v !== null).length < R.talentTiersOpen(st.level)) b.append(el("span", "dot"));
+  }
+  renderEq();
+  const root = document.getElementById("pbody"); root.replaceChildren();
+  if (st.tab === "stats") statsPanel(root); else if (st.tab === "tree") treePanel(root); else bagPanel(root, sugg);
+}
+for (const [id, t] of [["t-stats", "stats"], ["t-tree", "tree"], ["t-bag", "bag"]]) document.getElementById(id).onclick = () => { st.tab = t; render(); };
+const prof = document.getElementById("prof");
+for (const k of C.PROFESSION_KEYS) { const o = el("option", "", C.PROFESSIONS[k].name); o.value = k; prof.append(o); }
+prof.onchange = () => { st.profession = prof.value; st.talents = []; st.sel = null; render(); };
+const lvl = document.getElementById("lvl");
+lvl.oninput = () => { st.level = Number(lvl.value); if (R.attributePointsSpent(st.attributes) > R.attributePointsEarned(st.level)) st.attributes = R.emptyAttributes(); st.talents = st.talents.slice(0, R.talentTiersOpen(st.level)); if (st.page >= R.bagPagesOpen(st.level)) st.page = 0; st.sel = null; render(); };
+render();
+</script>
+
+</body>
+</html>
