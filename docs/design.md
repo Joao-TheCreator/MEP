@@ -369,7 +369,7 @@ nova precisa caber neste orçamento, por pessoa:
 | Momento | Tempo | O que faz |
 | --- | --- | --- |
 | Entrada rápida (2–3× por dia) | ~1 min | Coletar, fabricar, doar, ver o sítio |
-| Ronda da noite (#14, opcional) | 1–2 min | Uma ronda automática; só escolhe a hora do especial |
+| Ronda da noite (#14, opcional) | 1–2 min | Uma ronda automática; só escolhe a hora do especial. Quem não faz a ronda **não ganha as recompensas da noite**, mas também não é punido |
 | Personagem (de vez em quando) | ~1 min | Ponto de atributo, talento, "Equipar o melhor" |
 | **Total no dia** | **≤ 5 min** | |
 
