@@ -65,7 +65,7 @@ Sprites 18×26 gerados do **mesmo** `AvatarSpec` dos retratos: a cabeça vem do 
 o corpo (camisa, braços, calça, sapatos) é desenhado abaixo. Quatro direções (frente,
 costas, direita e esquerda espelhada), cada uma com 3 quadros: parado, passo A, passo B.
 Calça e sapatos podem ser personalizados por pessoa (`pants`, `pantsShade`, `shoes`).
-O componente `Walker` (`src/art/Walker.tsx`) anima os quadros e respeita
+O componente `Walker` (`src/art/WalkerSprite.tsx`) anima os quadros e respeita
 “reduzir movimento”. Veja todos em `/art`.
 
 ## Sítio vivo (`src/art/FarmScene.tsx`)
