@@ -23,6 +23,10 @@ export interface AvatarSpec {
   /** Beard color when different from the hair (e.g. grey). */
   beardColor?: string;
   shirtDetail?: "stripes" | "letters" | "cardigan" | "suit" | "straps" | "turtleneck";
+  /** Full-body sprites (walker.ts): pants and shoes colors. */
+  pants?: string;
+  pantsShade?: string;
+  shoes?: string;
   /** Group leader: gets the flame pin from the church logo. */
   leader?: boolean;
   glasses?: string;
