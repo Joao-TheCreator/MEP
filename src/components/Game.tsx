@@ -50,7 +50,7 @@ export function Game({ state }: { state: GameState }) {
 
   return (
     <>
-      <main className="shell">
+      <main className={`shell ${tab === "farm" ? "full" : ""}`}>
         <header className="topbar">
           <Sprite sprite={LOGO} scale={2} />
           <h1 className="grow">{state.farm.name}</h1>

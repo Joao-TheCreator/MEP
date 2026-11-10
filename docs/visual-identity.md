@@ -84,6 +84,18 @@ muda nada do jogo.
 - Tocar num boneco mostra nome, profissão e nível; seu boneco tem uma setinha rosa.
 - Com “reduzir movimento”, ficam parados.
 
+## Tela do Sítio (`src/components/screens/FarmScreen.tsx`)
+
+- O mapa ocupa toda a área entre a barra de cima e as abas (`.shell.full` +
+  `.farm-stage`); a dica e o botão **Convidar** flutuam por cima.
+- A **construção atual** fica numa gaveta embaixo (`.drawer`): fechada mostra o nome e
+  o % pronto; tocando, abre com os recursos e os botões de doar.
+- **Construções são clicáveis.** Cada sprite do mapa tem uma chave (`place` em
+  `FarmMap.farmItems`): templo, piscina, casinha, anexo e as construções coletivas
+  (poço, celeiro, moinho — inclusive o canteiro de obras). Tocar mostra um balão com o
+  nome e a gaveta passa a descrever o lugar (`LANDMARKS` em `FarmMap.tsx` para os fixos,
+  `BUILDINGS` da config para os coletivos). Tocar no chão ou num morador fecha a gaveta.
+
 ## Pendências
 
 - Commitar o arquivo original da logo em `public/brand/logo.png` (o jogo usa a
