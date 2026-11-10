@@ -68,6 +68,16 @@ export const PROFESSIONS: Record<ProfessionKey, Profession> = {
 
 export const PROFESSION_KEYS = Object.keys(PROFESSIONS) as ProfessionKey[];
 
+/**
+ * Changing profession (design §2.1). The cost is paid in the CURRENT profession's
+ * raw resource, so anyone can afford it without help from the others: costHours
+ * of base production (= costHours × 60 points for every profession).
+ */
+export const PROFESSION_CHANGE = {
+  costHours: 4,
+  cooldownHours: 24,
+} as const;
+
 export interface Recipe {
   name: string;
   profession: ProfessionKey;
