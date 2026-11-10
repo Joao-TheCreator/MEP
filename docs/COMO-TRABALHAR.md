@@ -38,9 +38,26 @@ Cada um é "dono" de uma área. Pode mexer na área do outro, mas **avise na iss
 
 | Área | Pastas | Dono |
 | --- | --- | --- |
-| Jogo e servidor | `src/game/`, `src/server/`, `db/`, `docs/design.md` | Pessoa 1 — _preencher_ |
-| Arte e telas | `src/art/`, `src/components/`, `src/app/`, `public/`, `docs/visual-identity.md` | Pessoa 2 — _preencher_ |
+| Jogo e servidor | `src/game/`, `src/server/`, `db/`, `docs/design.md` | **Rodrigo** — economia e lógica |
+| Arte e telas | `src/art/`, `src/components/`, `src/app/`, `public/`, `docs/visual-identity.md` | **João** — visual |
 | Compartilhado (combinar antes) | `CLAUDE.md`, `package.json`, `src/game/config.ts` | os dois |
+
+**Contrato entre as áreas:** as telas só leem o `GameState` (`src/server/game.ts`) e
+chamam as ações de `src/app/actions.ts`. Se o Rodrigo mudar o formato do `GameState`
+ou criar uma ação nova, ele avisa na issue; o João não mexe em regra de jogo. Mecânica
+nova que precisa de tela: Rodrigo entrega o dado + a ação, João faz a tela.
+
+## Rodando o jogo para ver (localhost)
+
+```bash
+npm run db:migrate
+npm run db:seed     # sítio de demonstração com os 20 moradores + link de login
+npm run dev
+```
+
+O `db:seed` recria o sítio de demonstração (código `DEMO01`) a cada execução e imprime
+um link de login de uso único. Para entrar como outra pessoa:
+`SEED_LOGIN=rodrigo npm run db:seed`.
 
 ## Regras de ouro
 

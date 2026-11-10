@@ -21,6 +21,12 @@ cada um. Guia completo para eles: `docs/COMO-TRABALHAR.md`.
 4. Dê um resumo curto: em que branch está, o que mudou desde a última vez, o que
    está em revisão.
 
+**Quem é quem:** **Rodrigo** = economia e lógica (`src/game/`, `src/server/`, `db/`,
+`src/app/actions.ts`, `docs/design.md`). **João** = visual (`src/art/`, `src/components/`,
+páginas e CSS em `src/app/`, `public/`, `docs/visual-identity.md`). Trabalho em passos
+pequenos: um passo por vez, sempre mostrando no localhost antes de seguir.
+Roadmap visual: bonecos de corpo inteiro → bonecos andando no mapa → uma tela por PR.
+
 **Durante o trabalho:** respeite a divisão de áreas de `docs/COMO-TRABALHAR.md`;
 mudança fora da área → avise e sugira comentar na issue. Commits pequenos.
 
@@ -87,7 +93,8 @@ Deploy na Vercel. Variáveis em `.env.example`.
 ## Comandos
 
 - `npm run dev` · `npm test` · `npm run lint` · `npm run build`
-- `npm run db:migrate` (precisa de `DATABASE_URL`)
+- `npm run db:migrate` (precisa de `DATABASE_URL`, lê `.env.local`)
+- `npm run db:seed` — sítio de demonstração com os 20 moradores + link de login (só banco local)
 
 ## Pendências / próximos passos
 

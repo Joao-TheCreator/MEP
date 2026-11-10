@@ -17,6 +17,7 @@ Requisitos: Node 20+ e um Postgres.
 npm install
 cp .env.example .env.local   # ajuste DATABASE_URL
 npm run db:migrate
+npm run db:seed    # opcional: sítio de demonstração + link de login
 npm run dev
 ```
 
@@ -40,6 +41,7 @@ própria tela de login (e no console do servidor).
 | `npm run lint` | checagem de tipos |
 | `npm run build` | build de produção |
 | `npm run db:migrate` | aplica `db/migrations/*.sql` pendentes |
+| `npm run db:seed` | sítio de demonstração com os 20 moradores (só banco local) |
 
 ## Estrutura
 
