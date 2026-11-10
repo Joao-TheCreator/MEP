@@ -133,49 +133,93 @@ function toBack(g: Grid) {
   g.rect(14, 8, 1, 2, "K");
 }
 
-/** Facing right: face features slide 1px right, back of the head becomes hair. */
-function toRight(g: Grid) {
-  const src = g.cells.map((r) => [...r]);
-  for (let y = 6; y <= 15; y++) {
-    for (let x = 13; x >= 5; x--) {
-      const c = src[y][x - 1];
-      if (FACE.has(src[y][x]) || FACE.has(c)) g.set(x, y, FACE.has(c) ? c : "k");
+const HAIR = new Set(["h", "H", "o", "r"]);
+
+/**
+ * Facing right: a real profile. Keeps the hair silhouette from the front view,
+ * turns the back half of the head into hair and redraws the face features
+ * (eye, brow, nose, mouth, ear, beard, glasses, cap brim) on the right side.
+ */
+function toRight(g: Grid, spec: AvatarSpec) {
+  const long = LONG_STYLES.has(spec.style);
+  const bigHair = spec.style === "curly" || spec.style === "curlyLong";
+
+  // 1. wipe the front face and anything hanging on the face side
+  for (let y = 6; y <= 16; y++) {
+    for (let x = 9; x < WALKER_W; x++) {
+      const inHead = x <= 13 && y <= 14;
+      if (y <= 6 && HAIR.has(g.get(x, y))) continue; // keep bangs on the forehead
+      if (inHead) g.set(x, y, "k");
+      else if (y <= 14 || !["K", "s", "S"].includes(g.get(x, y))) g.set(x, y, ".");
     }
   }
-  // the far eye, far lens and far brow hide behind the head
-  for (let y = 6; y <= 12; y++) {
-    for (let x = 4; x <= 9; x++) {
-      const c = g.get(x, y);
-      if (c === "e" || c === "w" || c === "g") g.set(x, y, "k");
-      if (c === "h" && y >= 7 && y <= 8 && x >= 6) g.set(x, y, "k");
+  // the forehead hairline: whatever hair the front view had at row 6 stays
+  // 2. back of the head is hair
+  const backBottom = long ? 16 : 12;
+  for (let y = 5; y <= backBottom; y++) {
+    const x0 = bigHair ? 2 : long ? 3 : 4;
+    for (let x = x0; x <= 8; x++) {
+      if (y > 12 && x > 7) continue;
+      g.set(x, y, (x * 3 + y) % 7 === 0 ? "H" : "h");
     }
   }
-  // back of the head
-  for (let y = 4; y <= 12; y++) {
-    for (let x = 4; x <= 7; x++) if (FACE.has(g.get(x, y)) || g.get(x, y) === ".") g.set(x, y, (x + y) % 6 === 0 ? "H" : "h");
+  if (!long) {
+    // nape: clear the old jaw behind the neck
+    for (let y = 13; y <= 14; y++) for (let x = 3; x <= 6; x++) g.set(x, y, ".");
+    g.rect(7, 13, 2, 2, "k");
   }
-  g.rect(3, 6, 1, 6, "h");
-  // nape: no skin block behind the jaw
-  // (long hair keeps falling down the back instead)
-  for (let y = 13; y <= 15; y++) {
-    for (let x = 3; x <= 6; x++) {
-      if (!FACE.has(g.get(x, y))) continue;
-      const hairAbove = ["h", "H", "o", "r"].includes(g.get(x, 12));
-      g.set(x, y, hairAbove && y <= 14 ? "h" : ".");
-    }
+  // leftovers of the front beard under the jaw become neck
+  if (!long) for (let y = 14; y <= 16; y++) for (let x = 6; x <= 10; x++) if (y >= 15 && g.get(x, y) !== "." && !["K", "s", "S"].includes(g.get(x, y))) g.set(x, y, x >= 7 && x <= 10 ? "K" : ".");
+  // 3. face features (profile)
+  g.rect(9, 9, 1, 2, "K"); // ear
+  g.set(9, 11, "K");
+  g.rect(10, 7, 3, spec.style === "curly" ? 2 : 1, "h"); // brow
+  g.rect(12, 9, 1, 2, "e"); // eye
+  if (!spec.happyEyes) g.set(11, 9, "w");
+  else { g.set(12, 9, "k"); g.set(11, 10, "e"); g.set(13, 10, "e"); g.set(12, 10, "k"); g.set(12, 9, "e"); }
+  g.set(14, 10, "k"); // nose
+  g.set(14, 11, "k");
+  g.set(13, 11, "K");
+  g.rect(13, 5, 1, 1, g.get(13, 5) === "." ? "k" : g.get(13, 5));
+  g.set(13, 13, "m"); // mouth
+  if (spec.smile) { g.set(12, 13, "m"); g.set(13, 12, "m"); g.set(13, 13, "w"); }
+  if (spec.blush) g.set(11, 12, "b");
+  if (spec.freckles) { g.set(11, 11, "K"); g.set(12, 11, "K"); }
+  // chin + jaw
+  g.rect(9, 14, 4, 1, "k");
+  g.set(13, 14, ".");
+  g.set(9, 13, "K");
+
+  // 4. facial hair
+  if (spec.facialHair === "mustache") g.rect(12, 12, 2, 1, "h");
+  if (spec.facialHair === "goatee") { g.rect(12, 12, 2, 1, "h"); g.rect(11, 14, 2, 1, "h"); }
+  if (spec.facialHair === "beard") { g.rect(12, 12, 2, 1, "h"); g.rect(9, 12, 1, 2, "f"); g.rect(10, 13, 2, 2, "f"); g.set(12, 14, "f"); }
+  if (spec.facialHair === "full") {
+    g.rect(9, 11, 1, 4, "z");
+    g.rect(10, 12, 1, 3, "z");
+    g.rect(11, 13, 2, 2, "z");
+    g.rect(12, 12, 2, 1, "z");
+    g.set(13, 13, "m");
+    g.rect(10, 15, 3, 1, "z");
   }
-  g.rect(7, 9, 1, 2, "K"); // ear
-  g.rect(14, 8, 1, 3, "k"); // cheek line
-  g.set(14, 11, "k"); // nose tip
-  g.set(15, 11, "K");
-  for (let y = 0; y < 16; y++) for (const x of [15, 16, 17]) if (FACE.has(g.get(x, y))) g.set(x, y, ".");
-  // cap brim points forward
-  for (let x = 0; x < WALKER_W; x++) {
-    if (g.get(x, 5) === "C") g.set(x, 5, x < 8 ? "c" : "C");
+
+  // 5. glasses: frame across the eye, arm back to the ear
+  if (spec.glasses) {
+    g.rect(10, 9, 1, 1, "g");
+    g.rect(11, 8, 3, 1, "g");
+    g.set(13, 9, "g");
+    g.set(13, 10, "g");
+    g.set(11, 9, "k");
   }
-  if (g.get(14, 5) === "C") {
-    g.set(15, 5, "C");
-    g.set(16, 5, "C");
+
+  // 6. cap: crown stays, brim points forward
+  if (spec.style === "cap") {
+    for (let x = 0; x < WALKER_W; x++) if (g.get(x, 5) === "C") g.set(x, 5, "c");
+    g.rect(9, 5, 8, 1, "C");
+    for (let x = 0; x < WALKER_W; x++) if (g.get(x, 2) === "x" || g.get(x, 3) === "x") { g.set(x, 2, g.get(x, 2) === "x" ? "c" : g.get(x, 2)); g.set(x, 3, g.get(x, 3) === "x" ? "c" : g.get(x, 3)); }
+    g.set(11, 3, "x");
+    g.set(12, 3, "x");
+    g.rect(4, 6, 2, 3, "h"); // hair under the cap at the back
   }
 }
 
@@ -187,7 +231,7 @@ export function walkerFrames(spec: AvatarSpec): WalkerFrames {
   const make = (dir: Direction, frame: number): SpriteDef => {
     const { g, colors } = headGrid(spec);
     if (dir === "up") toBack(g);
-    if (dir === "right" || dir === "left") toRight(g);
+    if (dir === "right" || dir === "left") toRight(g, spec);
     drawBody(g, spec, dir, frame);
     return {
       rows: g.rows(),
