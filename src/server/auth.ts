@@ -22,8 +22,9 @@ export async function createLoginToken(email: string): Promise<string | null> {
     SELECT count(*)::int AS count FROM login_tokens
     WHERE email = ${email} AND created_at > now() - interval '15 minutes'`;
   if (count >= MAX_TOKENS_PER_WINDOW) return null;
-  // Housekeeping: login links older than a day can't be used nor count for the rate limit.
-  await sql`DELETE FROM login_tokens WHERE created_at < now() - interval '1 day'`;
+  // Housekeeping: drop login links that expired more than a day ago (the dev seed
+  // prints 7-day links, so delete by expiry, not by creation date).
+  await sql`DELETE FROM login_tokens WHERE expires_at < now() - interval '1 day'`;
   const token = newToken();
   await sql`
     INSERT INTO login_tokens (token_hash, email, expires_at)
