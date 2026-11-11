@@ -254,6 +254,8 @@ economia nem a escala de custo das construções (#4).
 - XP por ponto de valor movimentado: **doar 1**, **fabricar 0,5** (sobre os pontos do
   que saiu), **coletar 0,1**. **Enviar a um amigo não dá XP** (dois amigos poderiam
   ficar mandando um para o outro sem fim).
+- O XP é guardado **com fração** (coletar 1 ponto dá 0,1 XP), para que coletar várias
+  vezes pouco renda o mesmo que coletar uma vez muito.
 - Ritmo esperado: quem doa metade do que produz chega ao nível 10 em uns 3 dias e ao
   20 em umas 3 semanas.
 

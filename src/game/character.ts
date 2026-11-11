@@ -65,9 +65,13 @@ export function levelFromXp(totalXp: number): LevelInfo {
   }
 }
 
-/** XP earned for an action that moved `points` of value. */
+/**
+ * XP earned for an action that moved `points` of value. Kept with its fraction
+ * (the server stores total XP as a decimal), so collecting often in small amounts
+ * earns the same as collecting once; levelFromXp floors only the total.
+ */
 export function xpFor(action: keyof typeof XP_PER_POINT, points: number): number {
-  return Math.floor(points * XP_PER_POINT[action]);
+  return Math.round(points * XP_PER_POINT[action] * 100) / 100;
 }
 
 // ---------- attributes ----------

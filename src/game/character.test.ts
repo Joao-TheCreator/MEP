@@ -42,6 +42,12 @@ describe("level & XP (design §11.1)", () => {
     expect(xpFor("craft", 10)).toBe(5);
     expect(xpFor("collect", 60)).toBe(6);
   });
+
+  it("keeps fractions, so collecting often earns the same XP as collecting once", () => {
+    expect(xpFor("collect", 1)).toBe(0.1);
+    const sixty = Array.from({ length: 60 }, () => xpFor("collect", 1)).reduce((a, b) => a + b, 0);
+    expect(Math.round(sixty * 100) / 100).toBe(xpFor("collect", 60));
+  });
 });
 
 describe("attributes (design §11.2)", () => {
