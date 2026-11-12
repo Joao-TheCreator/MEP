@@ -11,6 +11,7 @@ import { Sprite } from "@/art/pixel";
 import { LOGO, RESOURCE_SPRITES } from "@/art/sprites";
 import type { ActionResult } from "@/app/actions";
 import { Avatar } from "./Avatar";
+import { Notices } from "./Notices";
 import { FarmScreen } from "./screens/FarmScreen";
 import { WorkScreen } from "./screens/WorkScreen";
 import { StockScreen } from "./screens/StockScreen";
@@ -33,6 +34,11 @@ const TABS: { key: Tab; label: string; icon: ResourceKey }[] = [
 
 export function Game({ state }: { state: GameState }) {
   const [tab, setTab] = useState<Tab>("farm");
+  // a tap on a phone notice opens the game on its tab (?tab=night)
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t && TABS.some((x) => x.key === t)) setTab(t as Tab);
+  }, []);
   const [toast, setToast] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -68,6 +74,7 @@ export function Game({ state }: { state: GameState }) {
           <h1 className="grow">{state.farm.name}</h1>
           <Coins n={state.me.coins} />
           <span className="lvl">Nível {state.farm.level}</span>
+          <Notices state={state} act={act} pending={pending} />
           <Avatar avatar={state.me.avatar} scale={2} />
         </header>
         <button type="button" className={`hint ${hint.urgent ? "urgent" : ""}`} onClick={() => setTab(hint.tab)}>
