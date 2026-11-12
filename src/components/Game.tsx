@@ -187,6 +187,7 @@ function hintFor(state: GameState, now: Date): Hint {
     canUpgradeWorkshop: !!me.upgradeCost && hasEnough(inventory, me.upgradeCost),
     workshopName: prof.workshop.name,
     canDonateTo: canDonate ? b!.name : null,
+    taskReward: state.tasks.claimable,
   });
 }
 

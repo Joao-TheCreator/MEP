@@ -5,7 +5,7 @@ import { nextStep, rewardPops, type HintInput, type Snapshot } from "./guide";
 const calm: HintInput = {
   pending: 0, capacity: 480, resourceName: "Grãos", hour: 10, patrolled: true, hordeBeatsDefense: false,
   nightsFireLasts: null, freeAttributePoints: 0, talentToPick: false, gearReady: null,
-  canUpgradeWorkshop: false, workshopName: "Arado", canDonateTo: null,
+  canUpgradeWorkshop: false, workshopName: "Arado", canDonateTo: null, taskReward: false,
 };
 
 describe("next step hint", () => {
@@ -37,6 +37,11 @@ describe("next step hint", () => {
     expect(nextStep({ ...all, freeAttributePoints: 0, talentToPick: false, gearReady: null })).toMatchObject({ tab: "work" });
     expect(nextStep({ ...calm, canDonateTo: "Poço" })).toMatchObject({ tab: "farm" });
     expect(nextStep({ ...calm, freeAttributePoints: 3 }).text).toContain("3 pontos");
+  });
+
+  it("a finished task comes before the personal progress", () => {
+    expect(nextStep({ ...calm, taskReward: true, freeAttributePoints: 2 })).toMatchObject({ tab: "work" });
+    expect(nextStep({ ...calm, taskReward: true }).text).toContain("Tarefa");
   });
 
   it("suggests collecting from half a storage and the patrol when idle", () => {

@@ -2,6 +2,7 @@ import "server-only";
 import { randomInt } from "node:crypto";
 import {
   ATTRIBUTE_KEYS,
+  ENERGY,
   FARM,
   NIGHT_WEAPONS,
   PROFESSIONS,
@@ -38,6 +39,17 @@ import {
   workshopUpgradeCost,
 } from "@/game/rules";
 import { buyCost, buyPoints, dailyBuyLimit, gameDay, sellValue } from "@/game/market";
+import {
+  allDoneBonus,
+  claimTasks,
+  dailyTasks,
+  energyNow,
+  minutesUntilEnergy,
+  taskDone,
+  taskSeed,
+  type DailyCounters,
+  type TaskKind,
+} from "@/game/tasks";
 import { previousWeekStart, weekStart } from "@/game/week";
 import type { Sql } from "postgres";
 import { db, type Tx } from "./db";
@@ -59,6 +71,8 @@ export class GameError extends Error {}
 
 interface PlayerRow extends CharacterRow {
   coins: number;
+  energy: number;
+  energy_at: Date;
   id: string;
   user_id: string;
   farm_id: string;
@@ -222,12 +236,13 @@ export async function collect(userId: string) {
   return withFarmTx(userId, async (tx, player, farm, now) => {
     const r = await settle(tx, player, farm.level, now);
     await addXp(tx, player.id, xpFor("collect", r.units * RESOURCES[PROFESSIONS[player.profession].produces].points));
+    await bump(tx, player, farm.level, now, "collect", r.units);
     return { units: r.units, capped: r.capped };
   });
 }
 
 export async function craft(userId: string, recipeKey: RecipeKey, times: number) {
-  return withFarmTx(userId, async (tx, player) => {
+  return withFarmTx(userId, async (tx, player, farm, now) => {
     const recipe = RECIPES[recipeKey];
     if (recipe.profession !== player.profession) {
       throw new GameError(`Só ${PROFESSIONS[recipe.profession].name} sabe fazer ${recipe.name}.`);
@@ -235,6 +250,7 @@ export async function craft(userId: string, recipeKey: RecipeKey, times: number)
     await removeItems(tx, player.id, recipeInputs(recipeKey, times));
     await addItems(tx, player.id, { [recipe.output]: times });
     await addXp(tx, player.id, xpFor("craft", times * RESOURCES[recipe.output].points));
+    await bump(tx, player, farm.level, now, "craft", times);
   });
 }
 
@@ -265,6 +281,7 @@ async function donateIn(tx: Tx, player: PlayerRow, farm: FarmRow, now: Date, res
     ON CONFLICT (farm_id, resource) DO UPDATE SET qty = farm_building_progress.qty + EXCLUDED.qty`;
   const points = amount * RESOURCES[resource].points;
   await addXp(tx, player.id, xpFor("donate", points));
+  await bump(tx, player, farm.level, now, "donate", points);
   await tx`
     INSERT INTO donations (farm_id, player_id, resource, qty, points)
     VALUES (${farm.id}, ${player.id}, ${resource}, ${amount}, ${points})`;
@@ -366,6 +383,59 @@ export async function professionCountsByInvite(code: string) {
   return { counts, missing: missingProfessions(counts) };
 }
 
+// ---------- daily tasks and energy (design §17) ----------
+
+interface DailyRow extends DailyCounters {
+  level: number;
+  profession: ProfessionKey;
+  can_donate: boolean;
+  claimed: number;
+  bonus_claimed: boolean;
+}
+
+/** Today's row for the player, created with a snapshot of level and profession on first use. */
+async function dailyRow(tx: Sql | Tx, player: PlayerRow, farmLevel: number, now: Date): Promise<DailyRow> {
+  const day = gameDay(now);
+  await tx`
+    INSERT INTO player_daily (player_id, day, level, profession, can_donate)
+    VALUES (${player.id}, ${day}, ${characterOf(player).level}, ${player.profession}, ${currentBuilding(farmLevel) !== null})
+    ON CONFLICT (player_id, day) DO NOTHING`;
+  const [row] = await tx<DailyRow[]>`SELECT * FROM player_daily WHERE player_id = ${player.id} AND day = ${day}`;
+  return row;
+}
+
+/** Counts something the player did today towards the daily tasks. */
+async function bump(tx: Tx, player: PlayerRow, farmLevel: number, now: Date, kind: TaskKind, n: number) {
+  if (n <= 0) return;
+  await dailyRow(tx, player, farmLevel, now);
+  await tx`
+    UPDATE player_daily SET ${tx(kind)} = ${tx(kind)} + ${Math.floor(n)}
+    WHERE player_id = ${player.id} AND day = ${gameDay(now)}`;
+}
+
+function tasksOf(player: PlayerRow, row: DailyRow, now: Date) {
+  return dailyTasks(taskSeed(player.id, gameDay(now)), row.level, row.profession, row.can_donate);
+}
+
+/** Claims the rewards of every finished task (and the bonus for finishing all). */
+export async function claimDailyTasks(userId: string) {
+  return withFarmTx(userId, async (tx, player, farm, now) => {
+    const row = await dailyRow(tx, player, farm.level, now);
+    const r = claimTasks(tasksOf(player, row, now), row, row.claimed, row.bonus_claimed, row.level);
+    if (r.coins === 0 && r.xp === 0) throw new GameError("Nenhuma tarefa pronta para receber ainda.");
+    await tx`
+      UPDATE player_daily SET claimed = ${r.claimed}, bonus_claimed = ${r.bonusClaimed}
+      WHERE player_id = ${player.id} AND day = ${gameDay(now)}`;
+    await tx`UPDATE players SET coins = coins + ${r.coins} WHERE id = ${player.id}`;
+    await addXp(tx, player.id, r.xp);
+    return { coins: r.coins, xp: r.xp, bonus: r.bonusClaimed && !row.bonus_claimed };
+  });
+}
+
+function energyOf(player: PlayerRow, now: Date) {
+  return energyNow(player.energy, player.energy_at, now, characterOf(player).bonuses.energyRegenPct);
+}
+
 // ---------- Vendinha (design §16) ----------
 
 async function boughtToday(tx: Sql | Tx, playerId: string, now: Date): Promise<number> {
@@ -376,11 +446,12 @@ async function boughtToday(tx: Sql | Tx, playerId: string, now: Date): Promise<n
 
 /** Sells resources to the shop for coins. No XP and no ranking points. */
 export async function sellToMarket(userId: string, resource: ResourceKey, qty: number) {
-  return withFarmTx(userId, async (tx, player) => {
+  return withFarmTx(userId, async (tx, player, farm, now) => {
     const coins = sellValue(resource, qty);
     if (coins < 1) throw new GameError("Isso é pouco demais para vender. Junte mais um pouco.");
     await removeItems(tx, player.id, { [resource]: qty });
     await tx`UPDATE players SET coins = coins + ${coins} WHERE id = ${player.id}`;
+    await bump(tx, player, farm.level, now, "sell", coins);
     return { coins };
   });
 }
@@ -412,16 +483,24 @@ export async function buyFromMarket(userId: string, resource: ResourceKey, qty: 
 
 /** Signs up for tonight's patrol (played the night mini-game). */
 export async function patrol(userId: string) {
-  return withFarmTx(userId, async (tx, player, farm) => {
+  return withFarmTx(userId, async (tx, player, farm, now) => {
     const night = farm.nights_survived + 1;
     if (player.patrol_night === night) throw new GameError("Você já fez a ronda de hoje.");
-    await tx`UPDATE players SET patrol_night = ${night} WHERE id = ${player.id}`;
+    const energy = energyOf(player, now);
+    if (energy < ENERGY.patrolCost) {
+      const wait = minutesUntilEnergy(energy, ENERGY.patrolCost, characterOf(player).bonuses.energyRegenPct);
+      throw new GameError(`Você está sem energia para a ronda. Volte em ${wait} min.`);
+    }
+    await tx`
+      UPDATE players SET patrol_night = ${night}, energy = ${energy - ENERGY.patrolCost}, energy_at = ${now}
+      WHERE id = ${player.id}`;
+    await bump(tx, player, farm.level, now, "patrol", 1);
     return { night };
   });
 }
 
 export async function upgradeGear(userId: string, slot: SlotKey) {
-  return withFarmTx(userId, async (tx, player) => {
+  return withFarmTx(userId, async (tx, player, farm, now) => {
     const gear = { ...player.gear };
     const cur = gear[slot] ?? { tier: "wood" as const, refine: 0 };
     const cost = gearUpgradeCost(cur.tier);
@@ -431,12 +510,13 @@ export async function upgradeGear(userId: string, slot: SlotKey) {
     gear[slot] = { tier: next, refine: cur.refine };
     await tx`UPDATE players SET gear = ${tx.json(gear as never)} WHERE id = ${player.id}`;
     await addXp(tx, player.id, xpFor("craft", bagPoints(cost)));
+    await bump(tx, player, farm.level, now, "gear", 1);
     return { tier: TIERS[next].name };
   });
 }
 
 export async function refineGear(userId: string, slot: SlotKey) {
-  return withFarmTx(userId, async (tx, player) => {
+  return withFarmTx(userId, async (tx, player, farm, now) => {
     const gear = { ...player.gear };
     const cur = gear[slot] ?? { tier: "wood" as const, refine: 0 };
     const cost = refineCost(cur.refine);
@@ -445,6 +525,7 @@ export async function refineGear(userId: string, slot: SlotKey) {
     gear[slot] = { tier: cur.tier, refine: cur.refine + 1 };
     await tx`UPDATE players SET gear = ${tx.json(gear as never)} WHERE id = ${player.id}`;
     await addXp(tx, player.id, xpFor("craft", bagPoints(cost)));
+    await bump(tx, player, farm.level, now, "gear", 1);
     return { refine: cur.refine + 1 };
   });
 }
@@ -529,6 +610,7 @@ export interface GameState {
     workshopLevel: number;
     lastCollectedAt: string;
     coins: number;
+    energy: { now: number; max: number; patrolCost: number };
     upgradeCost: Bag | null;
     /** Changing profession: what it costs now and when it is allowed (null = now). */
     professionChange: { cost: Bag; availableAt: string | null };
@@ -549,6 +631,14 @@ export interface GameState {
   };
   /** Vendinha: today's purchase limit (points of value) and how much is used. */
   market: { limit: number; used: number };
+  /** Today's tasks (design §17). */
+  tasks: {
+    items: { kind: TaskKind; text: string; target: number; progress: number; done: boolean; claimed: boolean; coins: number; xp: number }[];
+    bonusCoins: number;
+    bonusClaimed: boolean;
+    /** Something is finished and not claimed yet. */
+    claimable: boolean;
+  };
   night: {
     season: number;
     /** Number of the next attack in this season. */
@@ -642,6 +732,8 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
   const defense = defenseFor(members, tonight, farm.level);
   const me = characterOf(player);
   const loadout = loadoutOf(player);
+  const daily = await dailyRow(sql, player, farm.level, now);
+  const todayTasks = tasksOf(player, daily, now);
   const professionCounts = countProfessions(members.map((m) => m.profession));
   const cleanInventory: Bag = {};
   for (const k of RESOURCE_KEYS) if (inventory[k]) cleanInventory[k] = inventory[k];
@@ -656,6 +748,7 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       workshopLevel: player.workshop_level,
       lastCollectedAt: player.last_collected_at.toISOString(),
       coins: player.coins,
+      energy: { now: energyOf(player, now), max: ENERGY.max, patrolCost: ENERGY.patrolCost },
       upgradeCost: workshopUpgradeCost(player.profession, player.workshop_level),
       professionChange: {
         cost: professionChangeCost(player.profession),
@@ -689,6 +782,21 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       patrolledTonight: player.patrol_night === tonight,
     },
     market: { limit: dailyBuyLimit(me.level), used: await boughtToday(sql, player.id, now) },
+    tasks: {
+      items: todayTasks.map((t, i) => ({
+        kind: t.kind,
+        text: t.text,
+        target: t.target,
+        progress: Math.min(t.target, daily[t.kind]),
+        done: taskDone(t, daily),
+        claimed: (daily.claimed & (1 << i)) !== 0,
+        coins: t.coins,
+        xp: t.xp,
+      })),
+      bonusCoins: allDoneBonus(daily.level),
+      bonusClaimed: daily.bonus_claimed,
+      claimable: todayTasks.some((t, i) => taskDone(t, daily) && (daily.claimed & (1 << i)) === 0),
+    },
     night: {
       season: farm.season,
       night: tonight,
