@@ -246,16 +246,20 @@ Depois do Moinho, no MVP o sítio fica no nível 4 ("Em breve: novas construçõ
   ações de um mesmo sítio são serializadas; sem condição de corrida.
 - Estoque tem `CHECK (qty >= 0)` no banco como última barreira.
 - Entradas validadas com `zod` (inteiros positivos, chaves conhecidas, limites).
-- Link mágico: token aleatório de 32 bytes, guardado só o hash SHA-256, expira em
-  15 min, uso único, no máximo 3 pedidos por e-mail a cada 15 min. A página do
-  link pede um clique em "Entrar" (POST) para que leitores de e-mail não
-  consumam o token.
+- Login por senha pessoal, sem e-mail: a pessoa digita só a senha, que a
+  identifica. Por isso a senha é única no sítio todo e fica guardada como
+  HMAC-SHA256 com `AUTH_SECRET` (não dá para reverter sem o segredo do servidor).
+  Mínimo de 6 caracteres, senhas óbvias recusadas, no máximo 10 tentativas
+  (entrar ou criar) por IP a cada 15 min. Se a senha escolhida já existe, a
+  resposta é a mesma de uma senha fraca, para não confirmar a senha de ninguém.
+  Sessão em cookie `httpOnly` por 30 dias. Esqueceu a senha: por enquanto não há
+  recuperação (ver pendências).
 
 ---
 
 ## 10. Escopo
 
-**MVP (este marco):** login por link mágico; criar/entrar em sítio por código de
+**MVP (este marco):** login por senha pessoal; criar/entrar em sítio por código de
 convite; escolha de boneco; 4 profissões; inventário; coleta offline; receitas; oficinas; envio entre
 jogadores; doação às 3 construções; ranking semanal; PWA instalável.
 

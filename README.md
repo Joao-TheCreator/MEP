@@ -17,18 +17,19 @@ Requisitos: Node 20+ e um Postgres.
 npm install
 cp .env.example .env.local   # ajuste DATABASE_URL
 npm run db:migrate
-npm run db:seed    # opcional: sítio de demonstração + link de login
+npm run db:seed    # opcional: sítio de demonstração (senhas impressas no terminal)
 npm run dev
 ```
 
-Abra http://localhost:3000. Sem `RESEND_API_KEY`, o link mágico aparece na
-própria tela de login (e no console do servidor).
+Abra http://localhost:3000. Para entrar, cada pessoa digita só a sua senha
+pessoal (criada na primeira vez em "Criar meu acesso"). O `db:seed` cria os 20
+moradores com a senha `<chave-do-boneco>123` (ex.: `rodrigo123`).
 
 ## Deploy na Vercel
 
 1. Importe o repositório na Vercel.
 2. Crie um banco (Neon pela integração da Vercel) e configure `DATABASE_URL`
-   (URL *pooled*), `APP_URL`, `RESEND_API_KEY` e `EMAIL_FROM`.
+   (URL *pooled*) e `AUTH_SECRET` (16+ caracteres aleatórios: `openssl rand -base64 32`).
 3. Rode as migrações apontando para o banco de produção:
    `DATABASE_URL=... npm run db:migrate`.
 
