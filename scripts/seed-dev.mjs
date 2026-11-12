@@ -31,6 +31,14 @@ const DATA = JSON.parse(readFileSync(new URL("./seed-data.json", import.meta.url
 const PEOPLE = DATA.people.map((p) => [p.key, p.name]);
 const POINTS = DATA.points;
 const PROFESSIONS = ["carpenter", "farmer", "rancher", "blacksmith"];
+// Some variety for the hero and night screens (design §15): XP and gear kept from "earlier seasons".
+const XP = [120, 900, 2400, 400, 5200, 60, 1500, 3100];
+const GEAR = [
+  {},
+  { weapon: { tier: "bronze", refine: 0 } },
+  { weapon: { tier: "iron", refine: 2 }, body: { tier: "bronze", refine: 0 } },
+  { weapon: { tier: "silver", refine: 1 }, body: { tier: "iron", refine: 0 }, tool: { tier: "bronze", refine: 0 } },
+];
 const STARTER = {
   farmer: { grain: 240, feed: 12 },
   rancher: { milk: 120, cheese: 8 },
@@ -54,11 +62,15 @@ try {
         RETURNING id`;
       const hoursAgo = 1 + (i * 37) % 9; // varied pending production, some storages full
       const [player] = await tx`
-        INSERT INTO players (user_id, farm_id, display_name, avatar, profession, workshop_level, last_collected_at)
+        INSERT INTO players (user_id, farm_id, display_name, avatar, profession, workshop_level, last_collected_at,
+                             xp, gear, night_class)
         VALUES (${user.id}, ${farm.id}, ${name}, ${key}, ${profession}, ${1 + (i % 3)},
-                now() - make_interval(hours => ${hoursAgo}))
+                now() - make_interval(hours => ${hoursAgo}),
+                ${XP[i % XP.length]}, ${tx.json(GEAR[i % GEAR.length])}, ${i % 2 ? "mattress" : "volley"})
         RETURNING id`;
-      for (const [resource, qty] of Object.entries(STARTER[profession])) {
+      // everyone gets some planks, bars and tools too, to try the gear upgrades
+      const bag = { ...STARTER[profession], plank: (STARTER[profession].plank ?? 0) + 25, iron_bar: (STARTER[profession].iron_bar ?? 0) + 12, tool: (STARTER[profession].tool ?? 0) + 2 };
+      for (const [resource, qty] of Object.entries(bag)) {
         await tx`INSERT INTO inventory (player_id, resource, qty) VALUES (${player.id}, ${resource}, ${qty})`;
       }
       // a few donations this week toward the well, so the ranking has movement
