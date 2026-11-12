@@ -174,7 +174,8 @@ export function itemWorksFor(item: GearItem, profession: ProfessionKey): boolean
 export function refineCost(refine: number): Bag | null {
   if (refine >= REFINE.maxLevel) return null;
   const out: Bag = {};
-  for (const [k, v] of Object.entries(REFINE.costPerLevel) as [ResourceKey, number][]) out[k] = Math.ceil(v * (refine + 1));
+  const growth = Math.pow(REFINE.costGrowth, refine);
+  for (const [k, v] of Object.entries(REFINE.costPerLevel) as [ResourceKey, number][]) out[k] = Math.ceil(Math.round(v * (refine + 1) * growth * 1e6) / 1e6);
   return out;
 }
 
