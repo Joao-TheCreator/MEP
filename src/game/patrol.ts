@@ -23,7 +23,10 @@ export function rng(seed: number) {
 }
 
 
-export type HeroClass = "volei" | "colchonete";
+export type HeroClass = "volei" | "colchonete" | "violao" | "cozinheira" | "lanterna";
+
+/** Classes that fight from a distance (they shoot and keep away from the creatures). */
+const RANGED: HeroClass[] = ["volei", "violao", "lanterna"];
 export type EnemyKind = "sombra" | "vulto" | "assombracao";
 
 /** Arena in world units (one walker pixel = half a unit, like the farm map). */
@@ -59,6 +62,39 @@ export const CLASSES = {
       name: "Colchonetada",
       description: "Pancada em volta que empurra todo mundo e escudo de 4 s que puxa os inimigos para você.",
     },
+  },
+  violao: {
+    name: "Violão",
+    role: "Toca de longe e atrasa a horda",
+    hp: 65,
+    speed: 24,
+    range: 40,
+    damage: 7,
+    cooldown: 0.7,
+    energyPerHit: 10,
+    special: { name: "Acorde", description: "Um acorde que acerta todo mundo e deixa a horda lenta por 5 s." },
+  },
+  cozinheira: {
+    name: "Cozinheira",
+    role: "Corpo a corpo, cuida da fogueira",
+    hp: 110,
+    speed: 21,
+    range: 9,
+    damage: 10,
+    cooldown: 0.8,
+    energyPerHit: 8,
+    special: { name: "Marmita", description: "Comida quente: a fogueira recupera 20% da vida e você metade da sua." },
+  },
+  lanterna: {
+    name: "Lanterna",
+    role: "Ilumina a mata e acha o ponto fraco",
+    hp: 70,
+    speed: 26,
+    range: 32,
+    damage: 9,
+    cooldown: 0.85,
+    energyPerHit: 8,
+    special: { name: "Farol", description: "Luz forte: as criaturas por perto ficam paradas por 3 s." },
   },
 } as const;
 
@@ -107,11 +143,15 @@ export interface Enemy {
   cd: number;
   facing: 1 | -1;
   hitAt: number;
+  /** Slowed down until this time (Violão). */
+  slowUntil: number;
+  /** Can't move or attack until this time (Lanterna). */
+  stunUntil: number;
 }
 
 export interface Shot {
   id: number;
-  kind: "ball" | "spike" | "orb";
+  kind: "ball" | "spike" | "orb" | "note" | "light";
   x: number;
   y: number;
   vx: number;
@@ -270,7 +310,7 @@ function updateHero(s: NightState, dt: number) {
   if (d > c.range) {
     moveToward(h, target.x, target.y, c.speed * dt);
     h.moving = true;
-  } else if (h.cls === "volei" && d < 14) {
+  } else if (RANGED.includes(h.cls) && d < 14) {
     // keep some distance, backing towards the camp
     const back = { x: h.x, y: h.y };
     moveToward(back, h.x - (target.x - h.x), h.y - (target.y - h.y), c.speed * 0.7 * dt);
@@ -283,10 +323,10 @@ function updateHero(s: NightState, dt: number) {
   if (d <= c.range && h.cd <= 0) {
     h.cd = c.cooldown;
     h.attackAt = s.t;
-    if (h.cls === "volei") {
+    if (RANGED.includes(h.cls)) {
       const v = 90 / d;
       s.shots.push({
-        id: s.nextId++, kind: "ball", x: h.x, y: h.y - 8, vx: (target.x - h.x) * v, vy: (target.y - 4 - (h.y - 8)) * v,
+        id: s.nextId++, kind: h.cls === "volei" ? "ball" : h.cls === "violao" ? "note" : "light", x: h.x, y: h.y - 8, vx: (target.x - h.x) * v, vy: (target.y - 4 - (h.y - 8)) * v,
         damage: c.damage, pierce: false, hit: [], ttl: 1,
       });
     } else {
@@ -304,6 +344,8 @@ function updateEnemies(s: NightState, dt: number) {
   const heroUp = !heroDown(s);
   for (const e of s.enemies) {
     const def = ENEMIES[e.kind];
+    // stunned by the Lanterna: frozen in place
+    if (s.t < e.stunUntil) continue;
     e.cd -= dt;
     const dh = dist(e.x, e.y, h.x, h.y);
     const onHero = heroUp && (dh < def.aggro || (shieldOn(s) && dh < 45));
@@ -313,7 +355,7 @@ function updateEnemies(s: NightState, dt: number) {
     const d = dist(e.x, e.y, tx, ty);
     e.facing = tx >= e.x ? 1 : -1;
     if (d > reach) {
-      moveToward(e, tx, ty, def.speed * dt);
+      moveToward(e, tx, ty, def.speed * (s.t < e.slowUntil ? 0.5 : 1) * dt);
       continue;
     }
     if (e.cd > 0) continue;
@@ -368,7 +410,7 @@ function updateShots(s: NightState, dt: number) {
       if (dist(sh.x, sh.y, e.x, e.y - 4) < (sh.kind === "spike" ? 7 : 5)) {
         hurtEnemy(s, e, sh.damage);
         sh.hit.push(e.id);
-        if (sh.kind === "ball") h.energy = Math.min(100, h.energy + CLASSES.volei.energyPerHit);
+        if (sh.kind !== "spike") h.energy = Math.min(100, h.energy + CLASSES[h.cls].energyPerHit);
         if (!sh.pierce) { sh.ttl = 0; break; }
       }
     }
@@ -394,7 +436,7 @@ function tick(s: NightState, dt: number) {
     const def = ENEMIES[kind];
     s.enemies.push({
       id: s.nextId++, kind, ...spawnPoint(s),
-      hp: def.hp, maxHp: def.hp, cd: def.cooldown, facing: -1, hitAt: -1,
+      hp: def.hp, maxHp: def.hp, cd: def.cooldown, facing: -1, hitAt: -1, slowUntil: -1, stunUntil: -1,
     });
   }
   updateHero(s, dt);
@@ -441,6 +483,26 @@ export function fireSpecial(s: NightState): boolean {
       });
     }
     fx(s, h.x, h.y - 18, "Cortada!", "#ffe08a");
+  } else if (h.cls === "violao") {
+    // Acorde: hits everyone on screen and slows the horde down
+    for (const e of s.enemies) {
+      hurtEnemy(s, e, 12);
+      e.slowUntil = s.t + 5;
+    }
+    fx(s, h.x, h.y - 18, "Acorde!", "#e9d6ff");
+  } else if (h.cls === "cozinheira") {
+    // Marmita: the campfire and the hero get their strength back
+    s.camp.hp = Math.min(s.camp.max, s.camp.hp + Math.round(s.camp.max * 0.2));
+    h.hp = Math.min(h.maxHp, h.hp + Math.round(h.maxHp / 2));
+    fx(s, CAMP.x, CAMP.y - 14, "Marmita!", "#b6f08a");
+  } else if (h.cls === "lanterna") {
+    // Farol: creatures near the hero are frozen for 3 s
+    for (const e of s.enemies) {
+      if (dist(e.x, e.y, h.x, h.y) > 50) continue;
+      hurtEnemy(s, e, 6);
+      e.stunUntil = s.t + 3;
+    }
+    fx(s, h.x, h.y - 18, "Farol!", "#ffe08a");
   } else {
     for (const e of s.enemies) {
       const d = dist(e.x, e.y, h.x, h.y);
@@ -520,9 +582,10 @@ export interface PatrolRewards {
 /**
  * What a patrol pays: coins per star, and one loot roll per star. Each roll is
  * a material worth about lootPointsBase + lootPointsPerNight × night points,
- * so the patrol is a solo source of what other professions make.
+ * so the patrol is a solo source of what other professions make. A scout
+ * (Lanterna) gets `extraRolls` more when the patrol earns any star (design §22).
  */
-export function patrolRewards(stars: number, night: number, seed: number): PatrolRewards {
+export function patrolRewards(stars: number, night: number, seed: number, extraRolls = 0): PatrolRewards {
   const n = Math.max(1, Math.floor(night));
   if (stars <= 0) return { coins: PATROL.consolationCoins, loot: {} };
   const coins = stars * (PATROL.coinsPerStarBase + PATROL.coinsPerStarPerNight * n);
@@ -531,7 +594,7 @@ export function patrolRewards(stars: number, night: number, seed: number): Patro
   const total = table.reduce((a, [, w]) => a + w, 0);
   const budget = PATROL.lootPointsBase + PATROL.lootPointsPerNight * n;
   const loot: Bag = {};
-  for (let i = 0; i < stars; i++) {
+  for (let i = 0; i < stars + Math.max(0, extraRolls); i++) {
     let roll = rand() * total;
     let pick = table[0][0];
     for (const [r, w] of table) {

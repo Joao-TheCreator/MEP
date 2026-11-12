@@ -17,7 +17,7 @@ function playOnPhone(cls: HeroClass, seed: number, speed: 1 | 2, useSpecial = tr
 }
 
 describe("patrol replay (design §18)", () => {
-  for (const cls of ["volei", "colchonete"] as const) {
+  for (const cls of ["volei", "colchonete", "violao", "cozinheira", "lanterna"] as const) {
     it(`${cls}: the server replay gives exactly the phone's result`, () => {
       for (const seed of [1, 42, 999_999]) {
         const phone = playOnPhone(cls, seed, 1);
@@ -56,6 +56,14 @@ describe("patrol rewards (design §18)", () => {
     expect(units).toBeGreaterThanOrEqual(3);
     // each roll is worth at most the budget (15 points on night 1), at least one unit
     expect(bagPoints(r.loot)).toBeLessThanOrEqual(3 * Math.max(15, RESOURCES.tool.points));
+  });
+
+  it("a scout gets extra loot rolls, but not more coins and nothing on a lost patrol (§22)", () => {
+    const base = patrolRewards(2, 5, 99);
+    const scout = patrolRewards(2, 5, 99, 1);
+    expect(scout.coins).toBe(base.coins);
+    expect(bagPoints(scout.loot)).toBeGreaterThan(bagPoints(base.loot));
+    expect(patrolRewards(0, 5, 99, 1)).toEqual(patrolRewards(0, 5, 99));
   });
 
   it("a lost patrol gives only a few coins", () => {

@@ -22,7 +22,7 @@ import {
 } from "@/game/config";
 import { currentUser, destroySession, loginWithPassword, signupWithPassword } from "@/server/auth";
 import { passwordProblem } from "@/server/password";
-import { validSpecialTicks } from "@/game/patrol";
+import { validSpecialTicks, type HeroClass } from "@/game/patrol";
 import * as game from "@/server/game";
 
 export type ActionResult = { ok: boolean; message: string };
@@ -193,7 +193,7 @@ const slotKey = z.enum(SLOT_KEYS as [string, ...string[]]);
 const attributeKey = z.enum(ATTRIBUTE_KEYS as [string, ...string[]]);
 const nightClass = z.enum(PLAYABLE_NIGHT_CLASSES);
 
-export type StartPatrolResult = ActionResult & { run?: { runId: string; seed: number; cls: "volei" | "colchonete"; kind: string } };
+export type StartPatrolResult = ActionResult & { run?: { runId: string; seed: number; cls: HeroClass; kind: string } };
 
 /** Starts a patrol (spends energy) and returns the seed the mini-game must use. */
 export async function startPatrolAction(): Promise<StartPatrolResult> {

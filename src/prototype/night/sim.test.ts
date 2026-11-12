@@ -17,7 +17,7 @@ describe("night prototype", () => {
     expect([a.t, a.camp.hp, a.kills]).toEqual([b.t, b.camp.hp, b.kills]);
   });
 
-  for (const cls of ["volei", "colchonete"] as const) {
+  for (const cls of ["volei", "colchonete", "violao", "cozinheira", "lanterna"] as const) {
     it(`${cls}: a night ends in a few minutes`, () => {
       const s = play(cls, 3, true);
       expect(["won", "lost"]).toContain(s.phase);
