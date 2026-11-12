@@ -1,6 +1,8 @@
 import {
   BUILDINGS,
   FARM,
+  PROFESSION_CHANGE,
+  PROFESSION_KEYS,
   PROFESSIONS,
   RECIPES,
   RESOURCES,
@@ -146,4 +148,31 @@ export function remainingForBuilding(building: Building, progress: Bag): Bag {
 
 export function isBuildingComplete(building: Building, progress: Bag): boolean {
   return Object.values(remainingForBuilding(building, progress)).every((v) => v === 0);
+}
+
+// ---------- professions on the farm ----------
+
+/** How many residents have each profession (every profession present, 0 if none). */
+export function countProfessions(professions: ProfessionKey[]): Record<ProfessionKey, number> {
+  const counts = Object.fromEntries(PROFESSION_KEYS.map((k) => [k, 0])) as Record<ProfessionKey, number>;
+  for (const p of professions) counts[p] += 1;
+  return counts;
+}
+
+/** Professions nobody on the farm has yet (the farm can get stuck without them). */
+export function missingProfessions(counts: Record<ProfessionKey, number>): ProfessionKey[] {
+  return PROFESSION_KEYS.filter((k) => counts[k] === 0);
+}
+
+/** Cost to leave `current`: costHours of its base production, in its raw resource. */
+export function professionChangeCost(current: ProfessionKey): Bag {
+  const p = PROFESSIONS[current];
+  return { [p.produces]: p.baseRatePerHour * PROFESSION_CHANGE.costHours };
+}
+
+/** When the player may change profession again (null = right now). */
+export function professionChangeAvailableAt(lastChangedAt: Date | null, now: Date): Date | null {
+  if (!lastChangedAt) return null;
+  const at = new Date(lastChangedAt.getTime() + PROFESSION_CHANGE.cooldownHours * 3_600_000);
+  return at > now ? at : null;
 }

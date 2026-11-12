@@ -39,6 +39,8 @@ async function allowAttempt(): Promise<boolean> {
 
 async function startSession(userId: string) {
   const sessionToken = newToken();
+  // Housekeeping (from PR #18): drop expired sessions (of anyone) on each login.
+  await db()`DELETE FROM sessions WHERE expires_at < now()`;
   await db()`
     INSERT INTO sessions (token_hash, user_id, expires_at)
     VALUES (${hash(sessionToken)}, ${userId}, ${new Date(Date.now() + SESSION_TTL_MS)})`;

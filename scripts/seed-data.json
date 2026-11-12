@@ -1,0 +1,96 @@
+{
+  "//": "Dados do sítio de demonstração (scripts/seed-dev.mjs). Conferido por src/game/seed-data.test.ts contra src/game/config.ts e src/art/avatars.ts.",
+  "points": {
+    "grain": 1,
+    "milk": 2,
+    "wood": 1,
+    "ore": 2,
+    "feed": 6,
+    "cheese": 10,
+    "plank": 4,
+    "iron_bar": 10,
+    "tool": 29
+  },
+  "people": [
+    {
+      "key": "joao-pedro",
+      "name": "João Pedro"
+    },
+    {
+      "key": "drielly",
+      "name": "Drielly"
+    },
+    {
+      "key": "hernnane",
+      "name": "Hernnane"
+    },
+    {
+      "key": "gabriel-campos",
+      "name": "Gabriel Campos"
+    },
+    {
+      "key": "heloisa",
+      "name": "Heloisa"
+    },
+    {
+      "key": "samuel",
+      "name": "Samuel"
+    },
+    {
+      "key": "alessandra",
+      "name": "Alessandra"
+    },
+    {
+      "key": "sarah",
+      "name": "Sarah"
+    },
+    {
+      "key": "samuel-choi",
+      "name": "Samuel Choi"
+    },
+    {
+      "key": "alex",
+      "name": "Alex"
+    },
+    {
+      "key": "nathan",
+      "name": "Nathan"
+    },
+    {
+      "key": "idro",
+      "name": "Idro"
+    },
+    {
+      "key": "suzana",
+      "name": "Suzana"
+    },
+    {
+      "key": "carol",
+      "name": "Carol"
+    },
+    {
+      "key": "sofia",
+      "name": "Sofia"
+    },
+    {
+      "key": "stephany",
+      "name": "Stephany"
+    },
+    {
+      "key": "bniel",
+      "name": "Bniel"
+    },
+    {
+      "key": "leine",
+      "name": "Leine"
+    },
+    {
+      "key": "rodrigo",
+      "name": "Rodrigo"
+    },
+    {
+      "key": "diego",
+      "name": "Diego"
+    }
+  ]
+}

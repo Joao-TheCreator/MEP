@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { AVATAR_KEYS } from "@/art/avatars";
-import { PROFESSION_KEYS, RECIPE_KEYS, RESOURCE_KEYS, RESOURCES } from "@/game/config";
+import { PROFESSION_KEYS, PROFESSIONS, RECIPE_KEYS, RESOURCE_KEYS, RESOURCES } from "@/game/config";
 import { currentUser, destroySession, loginWithPassword, signupWithPassword } from "@/server/auth";
 import { passwordProblem } from "@/server/password";
 import * as game from "@/server/game";
@@ -139,6 +139,25 @@ export async function donateAction(resource: string, amount: number): Promise<Ac
     if (r.completed) msg += ` 🎉 ${r.completed} concluído! O sítio subiu de nível!`;
     return msg;
   });
+}
+
+const professionKey = z.enum(PROFESSION_KEYS as [string, ...string[]]);
+
+export async function changeProfessionAction(profession: string): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const key = professionKey.parse(profession) as (typeof PROFESSION_KEYS)[number];
+    const r = await game.changeProfession(user.id, key);
+    return `Agora você é ${PROFESSIONS[r.profession].name}! Oficina no nível ${r.workshopLevel}.`;
+  });
+}
+
+/** For the join screen: who already does what on the farm with this invite code. */
+export async function professionCountsAction(code: string) {
+  await requireUser();
+  const parsed = z.string().trim().min(4).max(12).safeParse(code);
+  if (!parsed.success) return null;
+  return game.professionCountsByInvite(parsed.data);
 }
 
 export async function sendAction(toPlayerId: string, resource: string, amount: number): Promise<ActionResult> {
