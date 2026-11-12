@@ -59,8 +59,17 @@ cada sítio. O **Jondo (Diego)**, líder, usa um broche com a chama da logo.
 Para **adicionar alguém**: inclua uma nova chave em `AVATARS` (nunca renomeie uma
 chave existente, ela fica salva no banco em `players.avatar`) e confira em `/art`.
 
+## Bonecos de corpo inteiro (`src/art/walker.ts`)
+
+Sprites 18×26 gerados do **mesmo** `AvatarSpec` dos retratos: a cabeça vem do retrato e
+o corpo (camisa, braços, calça, sapatos) é desenhado abaixo. Quatro direções (frente,
+costas, direita e esquerda espelhada), cada uma com 3 quadros: parado, passo A, passo B.
+Calça e sapatos podem ser personalizados por pessoa (`pants`, `pantsShade`, `shoes`).
+O componente `Walker` (`src/art/WalkerSprite.tsx`) anima os quadros e respeita
+“reduzir movimento”. Veja todos em `/art`.
+
 ## Pendências
 
 - Commitar o arquivo original da logo em `public/brand/logo.png` (o jogo usa a
   versão pixelada `LOGO` em `src/art/sprites.ts`).
-- Bonecos de corpo inteiro andando no mapa (pós-MVP).
+- Bonecos andando no mapa (próximo passo).
