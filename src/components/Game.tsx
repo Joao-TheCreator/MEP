@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { LEVEL, PROFESSIONS, RESOURCES, SLOTS, type ResourceKey } from "@/game/config";
+import { LEVEL, NIGHT_ROLES, PROFESSIONS, RESOURCES, SLOTS, type ResourceKey } from "@/game/config";
 import { computeProduction, hasEnough, ratePerHour, storageHours } from "@/game/rules";
 import { farmHour } from "@/art/daylight";
 import { COIN } from "@/art/coin";
@@ -188,6 +188,10 @@ function hintFor(state: GameState, now: Date): Hint {
     workshopName: prof.workshop.name,
     canDonateTo: canDonate ? b!.name : null,
     taskReward: state.tasks.claimable,
+    missingRole: (() => {
+      const k = night.team.missing.find((r) => r !== "shooter" && r !== night.myRole);
+      return k ? NIGHT_ROLES[k].name.toLowerCase() : null;
+    })(),
   });
 }
 

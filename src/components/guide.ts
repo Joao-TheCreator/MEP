@@ -33,6 +33,8 @@ export interface HintInput {
   canDonateTo: string | null;
   /** A daily task is finished and its reward was not claimed yet. */
   taskReward: boolean;
+  /** Name of a night role nobody is playing tonight (tank or support), if the player could still switch. */
+  missingRole: string | null;
 }
 
 /** The single most useful thing to do now. The order below is the priority. */
@@ -57,6 +59,9 @@ export function nextStep(i: HintInput): Hint {
   if (i.canDonateTo) return { text: `Você tem material para a obra: ${i.canDonateTo}.`, tab: "farm" };
   if (i.capacity > 0 && i.pending >= i.capacity * 0.5) {
     return { text: `Colete sua produção: ${i.pending} de ${i.resourceName}.`, tab: "work" };
+  }
+  if (!i.patrolled && beforeAttack && i.missingRole) {
+    return { text: `Ninguém de ${i.missingRole} hoje. Dá para trocar de classe no Herói.`, tab: "hero" };
   }
   if (!i.patrolled && beforeAttack) return { text: "Faça a ronda de hoje para defender com força total.", tab: "night" };
   return { text: "Tudo em dia. A produção segue enquanto você descansa.", tab: "farm" };

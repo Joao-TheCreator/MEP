@@ -566,3 +566,49 @@ export const PATROL = {
   /** Specials accepted in one run (far above what a night allows). */
   maxSpecials: 200,
 } as const;
+
+// ============================================================================
+// Night roles (design §19): each night class has a role with an effect on the
+// group, counted among those who patrolled. Effects are capped, so a mixed
+// team does better than everyone on the same class.
+// ============================================================================
+
+export type NightRoleKey = "shooter" | "tank" | "support";
+
+export const NIGHT_ROLES = {
+  shooter: {
+    name: "Atirador",
+    /** Multiplies the resident's own power when they patrol. */
+    powerMultiplier: 1.3,
+    description: "Bate mais forte: força própria ×1,3.",
+  },
+  tank: {
+    name: "Tanque",
+    powerMultiplier: 1,
+    /** The fire takes this % less damage per 1% of the active members patrolling as tanks. */
+    damageCutPerSharePct: 2,
+    damageCutCapPct: 40,
+    description: "Segura a horda: a fogueira perde até 40% menos vida.",
+  },
+  support: {
+    name: "Suporte",
+    powerMultiplier: 0.8,
+    /** Everyone patrolling gets this % more power per 1% of the active members patrolling as supports. */
+    boostPerSharePct: 1.5,
+    boostCapPct: 30,
+    description: "Anima o time: até +30% de força para todos na ronda.",
+  },
+} as const;
+export const NIGHT_ROLE_KEYS = Object.keys(NIGHT_ROLES) as NightRoleKey[];
+
+/** Role of each night class. Cook and Lantern get their own roles later (roadmap phase 8). */
+export const NIGHT_CLASS_ROLE: Record<NightClassKey, NightRoleKey> = {
+  volley: "shooter",
+  mattress: "tank",
+  guitar: "support",
+  cook: "shooter",
+  lantern: "shooter",
+};
+
+/** Night classes a player can pick today. */
+export const PLAYABLE_NIGHT_CLASSES = ["volley", "mattress", "guitar"] as const satisfies readonly NightClassKey[];

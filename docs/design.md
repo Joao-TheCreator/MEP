@@ -488,10 +488,10 @@ perfis de jogador:
 
 | Grupo | Composição | Cai na noite (temporada 1 → 2 → 3) |
 | --- | --- | --- |
-| Dedicado | 8 dedicados, 8 regulares, 4 casuais | 29 → 30 → 30 |
-| Típico | 4 dedicados, 8 regulares, 8 casuais | 28 → 29 → 29 |
-| Devagar | 6 regulares, 14 casuais | 26 → 27 → 27 |
-| Pequeno (5) | 2 dedicados, 2 regulares, 1 casual | 29 → 30 → 30 |
+| Dedicado | 8 dedicados, 8 regulares, 4 casuais | 33 → 33 → 33 |
+| Típico | 4 dedicados, 8 regulares, 8 casuais | 31 → 31 → 31 |
+| Devagar | 6 regulares, 14 casuais | 28 → 28 → 28 |
+| Pequeno (5) | 2 dedicados, 2 regulares, 1 casual | 32 → 33 → 33 |
 
 O que o simulador mostrou e as mudanças que resultaram:
 
@@ -511,8 +511,9 @@ grupo que joga mais vai mais longe, e os itens guardados nunca encurtam a tempor
 seguinte.
 
 **Limites honestos:** com custos exponenciais, produzir o dobro vira poucas noites a
-mais (é normal num idle). A diferença entre grupos é de **2 a 3 noites** e cada
-temporada empurra **+1 noite**. Se o grupo quiser que o wipe pese mais, as alavancas
+mais (é normal num idle). Com os papéis da §19 (tabela acima, time misto), a diferença
+entre grupos subiu para **até 5 noites**; os itens guardados quase não empurram a
+temporada seguinte (0 a +1 noite). Se o grupo quiser que o wipe pese mais, as alavancas
 são: mais obras para subir o sítio (hoje só 3, o sítio chega ao nível 4 em uma semana)
 e um bônus pequeno por temporada.
 
@@ -651,3 +652,33 @@ outra fecha a anterior sem recompensa (a energia já foi gasta).
   terceira pede esperar a energia voltar.
 - Teste trava o teto: a ronda mais três expedições com 3 estrelas na noite 1 valem menos
   que meio dia de produção de um nível 1.
+
+## 19. Papéis da noite (proposta do João, em revisão)
+
+**Cada classe da noite tem um papel com efeito no grupo, e time misto rende mais que
+todo mundo na mesma classe.** Código: `nightComposition` e `roleEffects` em
+`src/game/night.ts`; números em `NIGHT_ROLES` (`config.ts`).
+
+Os efeitos contam só entre quem **fez a ronda** da noite. "Fatia" = moradores daquele
+papel na ronda ÷ moradores ativos (mínimo 4, como na horda).
+
+| Classe | Papel | Força própria | Efeito no grupo | Teto |
+| --- | --- | --- | --- | --- |
+| Jogador de vôlei | Atirador | ×1,3 | — | — |
+| Colchonete | Tanque | ×1,0 | A fogueira perde menos do que passou da defesa: corte = 2 × fatia | 40% |
+| Violão | Suporte | ×0,8 | Mais força para todos na ronda: bônus = 1,5 × fatia | +30% |
+
+- Os dois tetos chegam com **1 em cada 5 moradores** no papel. Passou disso, mais gente
+  do mesmo papel não ajuda.
+- Quem não fez a ronda continua com ×0,5 e não dá efeito de papel.
+- `dano na fogueira = max(0, horda − defesa) × (1 − corte)`.
+- Conta de referência, 20 pessoas do mesmo nível na ronda (força em unidades de um
+  morador): 20 atiradores = 26, sem corte; **12 atiradores + 4 tanques + 4 suportes =
+  29,6 e 40% menos dano**; 20 tanques = 20 com corte de 40%; 20 suportes = 20,8.
+- **Trocar de classe** é livre de dia e fica travado depois de fazer a ronda da noite.
+- O Violão usa o minijogo do Vôlei até ter o seu (roadmap, fase 8). Cozinheira (cura) e
+  Lanterna (batedor) entram nessa mesma fase.
+
+No simulador (§15.5), o grupo com time misto (3 atiradores, 1 tanque e 1 suporte em cada
+5) dura **1 noite a mais** que o mesmo grupo todo de atirador; no grupo pequeno, empata.
+Os números da horda não precisaram mudar: as metas de temporada continuam passando.

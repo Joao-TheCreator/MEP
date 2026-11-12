@@ -2,15 +2,28 @@ import "server-only";
 import {
   ATTRIBUTE_KEYS,
   NIGHT,
+  NIGHT_CLASS_ROLE,
   SLOT_KEYS,
   TALENTS,
   type NightClassKey,
+  type NightRoleKey,
   type ProfessionKey,
   type SlotKey,
   type TierKey,
 } from "@/game/config";
 import { characterBonuses, emptyAttributes, levelFromXp, type Attributes, type CharacterBuild, type GearItem, type Loadout, type TalentPicks } from "@/game/character";
-import { farmDefense, fireAfterRest, fireMaxHp, nightTimesBetween, patrolXp, residentPower, resolveNight, type NightOutcome } from "@/game/night";
+import {
+  farmDefense,
+  fireAfterRest,
+  fireMaxHp,
+  nightComposition,
+  nightTimesBetween,
+  patrolXp,
+  residentPower,
+  resolveNight,
+  type NightComposition,
+  type NightOutcome,
+} from "@/game/night";
 import type { Tx } from "./db";
 
 /**
@@ -41,6 +54,8 @@ export interface NightFarmRow {
 }
 
 export interface LastNight extends NightOutcome {
+  /** % of the damage the tanks held back (absent on nights before the roles existed). */
+  damageCutPct?: number;
   night: number;
   at: string;
   season: number;
@@ -83,14 +98,27 @@ export function activeCount(members: Pick<CharacterRow, "last_collected_at">[], 
   return members.filter((m) => m.last_collected_at.getTime() >= since).length;
 }
 
-export function powerOf(row: CharacterRow, patrolled: boolean): number {
-  const c = characterOf(row);
-  return residentPower(c.level, c.bonuses, patrolled);
+export function roleOf(row: Pick<CharacterRow, "night_class">): NightRoleKey {
+  return NIGHT_CLASS_ROLE[row.night_class] ?? "shooter";
 }
 
-/** Everyone's defense for `night`, counting who patrolled for it. */
-export function defenseFor(members: CharacterRow[], night: number, farmLevel: number): number {
-  return farmDefense(members.map((m) => powerOf(m, m.patrol_night === night)), farmLevel);
+export function powerOf(row: CharacterRow, patrolled: boolean): number {
+  const c = characterOf(row);
+  return residentPower(c.level, c.bonuses, patrolled, roleOf(row));
+}
+
+/** The team for `night` (design §19): who patrolled plays their role, the others just add power. */
+export function teamFor(members: CharacterRow[], night: number, activeMembers: number): NightComposition {
+  const patrollers = members
+    .filter((m) => m.patrol_night === night)
+    .map((m) => ({ role: roleOf(m), power: powerOf(m, true) }));
+  const resting = members.filter((m) => m.patrol_night !== night).reduce((a, m) => a + powerOf(m, false), 0);
+  return nightComposition(patrollers, resting, activeMembers);
+}
+
+/** The farm's defense for a team: its power with the farm-level bonus. */
+export function defenseOf(team: NightComposition, farmLevel: number): number {
+  return farmDefense([team.power], farmLevel);
 }
 
 /**
@@ -107,8 +135,15 @@ export async function resolvePendingNights(tx: Tx, farm: NightFarmRow, now: Date
     const active = activeCount(members, at);
     const fireMax = fireMaxHp(active, farm.level);
     const fireHp = fireAfterRest(farm.fire_hp ?? fireMax, fireMax);
-    const out = resolveNight({ night, activeMembers: active, defense: defenseFor(members, night, farm.level), fireHp });
-    last = { ...out, night, at: at.toISOString(), season: farm.season };
+    const team = teamFor(members, night, active);
+    const out = resolveNight({
+      night,
+      activeMembers: active,
+      defense: defenseOf(team, farm.level),
+      fireHp,
+      damageCutPct: team.damageCutPct,
+    });
+    last = { ...out, night, at: at.toISOString(), season: farm.season, damageCutPct: team.damageCutPct };
 
     if (out.wiped) {
       await wipeFarm(tx, farm, night, at);

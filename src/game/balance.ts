@@ -9,7 +9,16 @@
  * between professions is assumed to work; crafting is not modelled as a value
  * gain; patrols use their expected value (chance × bonus) instead of dice.
  */
-import { BUILDINGS, PROFESSION_KEYS, PROFESSIONS, RESOURCES, TIER_KEYS, type ProfessionKey, type TierKey } from "./config";
+import {
+  BUILDINGS,
+  PROFESSION_KEYS,
+  PROFESSIONS,
+  RESOURCES,
+  TIER_KEYS,
+  type NightRoleKey,
+  type ProfessionKey,
+  type TierKey,
+} from "./config";
 import {
   characterBonuses,
   emptyAttributes,
@@ -21,7 +30,7 @@ import {
   type TalentPicks,
 } from "./character";
 import { bagPoints, buildingCostScale, ratePerHour, storageHours, workshopUpgradeCost } from "./rules";
-import { farmDefense, fireAfterRest, fireMaxHp, patrolXp, residentPower, resolveNight } from "./night";
+import { farmDefense, fireAfterRest, fireMaxHp, patrolXp, residentPower, resolveNight, roleEffects } from "./night";
 
 export interface Archetype {
   name: string;
@@ -64,6 +73,7 @@ export function starterGear(): SimGear {
 interface Person {
   archetype: Archetype;
   profession: ProfessionKey;
+  role: NightRoleKey;
   xp: number;
   workshop: number;
   gear: SimGear;
@@ -124,7 +134,11 @@ export interface SeasonResult {
   farmLevel: number;
 }
 
-export function simulateSeason(mix: GroupMix, opts: { carriedGear?: SimGear[]; maxNights?: number } = {}): SeasonResult {
+/** Night roles of the group: a mixed team (3 shooters, 1 tank, 1 support in every 5) or everyone shooting. */
+export type TeamKind = "mixed" | "shooters";
+const MIXED: NightRoleKey[] = ["shooter", "shooter", "shooter", "tank", "support"];
+
+export function simulateSeason(mix: GroupMix, opts: { carriedGear?: SimGear[]; maxNights?: number; team?: TeamKind } = {}): SeasonResult {
   const people: Person[] = [];
   let i = 0;
   for (const [key, count] of Object.entries(mix) as [ArchetypeKey, number][]) {
@@ -132,6 +146,7 @@ export function simulateSeason(mix: GroupMix, opts: { carriedGear?: SimGear[]; m
       people.push({
         archetype: ARCHETYPES[key],
         profession: PROFESSION_KEYS[i % PROFESSION_KEYS.length],
+        role: opts.team === "shooters" ? "shooter" : MIXED[i % MIXED.length],
         xp: 0,
         workshop: 1,
         gear: opts.carriedGear?.[i] ? structuredClone(opts.carriedGear[i]) : starterGear(),
@@ -189,13 +204,26 @@ export function simulateSeason(mix: GroupMix, opts: { carriedGear?: SimGear[]; m
     // ---- night ----
     const fireMax = fireMaxHp(members, farmLevel);
     fire = fireAfterRest(fire, fireMax);
-    const powers = people.map((p) => {
+    // expected values: each person patrols with their archetype's chance, playing their role
+    const expected = { tank: 0, support: 0 };
+    let patrolPower = 0;
+    let restPower = 0;
+    for (const p of people) {
       const level = levelFromXp(p.xp).level;
       const c = p.archetype.patrolChance;
       const b = bonusesOf(p, level);
-      return residentPower(level, b, true) * c + residentPower(level, b, false) * (1 - c);
+      patrolPower += residentPower(level, b, true, p.role) * c;
+      restPower += residentPower(level, b, false) * (1 - c);
+      if (p.role !== "shooter") expected[p.role] += c;
+    }
+    const fx = roleEffects(expected, members);
+    const out = resolveNight({
+      night,
+      activeMembers: members,
+      defense: farmDefense([patrolPower * (1 + fx.supportBoostPct / 100) + restPower], farmLevel),
+      fireHp: fire,
+      damageCutPct: fx.damageCutPct,
     });
-    const out = resolveNight({ night, activeMembers: members, defense: farmDefense(powers, farmLevel), fireHp: fire });
     fire = out.fireHp;
     const levels = people.map((p) => levelFromXp(p.xp).level);
     const best = people.reduce((a, p) => Math.max(a, TIER_KEYS.indexOf(p.gear.weapon.tier)), 0);
@@ -218,11 +246,11 @@ export function simulateSeason(mix: GroupMix, opts: { carriedGear?: SimGear[]; m
 }
 
 /** Several seasons in a row, carrying the gear (the only thing a wipe keeps). */
-export function simulateSeasons(mix: GroupMix, seasons: number): SeasonResult[] {
+export function simulateSeasons(mix: GroupMix, seasons: number, team: TeamKind = "mixed"): SeasonResult[] {
   const out: SeasonResult[] = [];
   let gear: SimGear[] | undefined;
   for (let s = 0; s < seasons; s++) {
-    const r = simulateSeason(mix, { carriedGear: gear });
+    const r = simulateSeason(mix, { carriedGear: gear, team });
     out.push(r);
     gear = r.gear;
   }

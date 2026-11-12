@@ -9,7 +9,7 @@ import type { Spot } from "@/art/FarmScene";
 import type { ProfessionKey } from "@/game/config";
 import { collectAction, donateAction, donateAllAction } from "@/app/actions";
 import { computeProduction } from "@/game/rules";
-import { PROFESSIONS as PROFS, RESOURCES } from "@/game/config";
+import { NIGHT_CLASS_ROLE, NIGHT_ROLES, PROFESSIONS as PROFS, RESOURCES } from "@/game/config";
 import { Res } from "../Res";
 import type { ScreenProps } from "./types";
 
@@ -34,7 +34,7 @@ export function FarmScreen({ state, now, act, pending, openNight }: ScreenProps)
     id: m.id,
     name: m.id === me.id ? `${m.name} (você)` : m.name,
     avatar: m.avatar,
-    subtitle: `${PROFESSIONS[m.profession].name} · nv. ${m.workshopLevel}`,
+    subtitle: `${PROFESSIONS[m.profession].name} nv. ${m.workshopLevel} · ${NIGHT_ROLES[NIGHT_CLASS_ROLE[m.nightClass]].name} à noite`,
   }));
 
   const placeLabels: Partial<Record<PlaceKey, string>> = {};

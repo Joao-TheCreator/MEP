@@ -66,7 +66,7 @@ try {
                              xp, gear, night_class)
         VALUES (${user.id}, ${farm.id}, ${name}, ${key}, ${profession}, ${1 + (i % 3)},
                 now() - make_interval(hours => ${hoursAgo}),
-                ${XP[i % XP.length]}, ${tx.json(GEAR[i % GEAR.length])}, ${i % 2 ? "mattress" : "volley"})
+                ${XP[i % XP.length]}, ${tx.json(GEAR[i % GEAR.length])}, ${["volley", "volley", "volley", "mattress", "guitar"][i % 5]})
         RETURNING id`;
       // everyone gets some planks, bars and tools too, to try the gear upgrades
       const bag = { ...STARTER[profession], plank: (STARTER[profession].plank ?? 0) + 25, iron_bar: (STARTER[profession].iron_bar ?? 0) + 12, tool: (STARTER[profession].tool ?? 0) + 2 };
