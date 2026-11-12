@@ -185,3 +185,18 @@ export function professionChangeAvailableAt(lastChangedAt: Date | null, now: Dat
 export function buildingCostScale(activeMembers: number): number {
   return Math.max(1, activeMembers / BUILDING_SCALE.referenceMembers);
 }
+
+/** Effects of every finished building at this farm level, added up (design §20). */
+export function farmEffects(farmLevel: number) {
+  const total = { marketBuyPct: null as number | null, defensePct: 0, fireHpPct: 0, fireRegenPct: 0, refineDiscountPct: 0 };
+  for (const b of BUILDINGS) {
+    if (farmLevel <= b.fromLevel) continue;
+    const e = b.effect;
+    if (e.marketBuyPct !== undefined) total.marketBuyPct = Math.min(total.marketBuyPct ?? Infinity, e.marketBuyPct);
+    total.defensePct += e.defensePct ?? 0;
+    total.fireHpPct += e.fireHpPct ?? 0;
+    total.fireRegenPct += e.fireRegenPct ?? 0;
+    total.refineDiscountPct += e.refineDiscountPct ?? 0;
+  }
+  return total;
+}

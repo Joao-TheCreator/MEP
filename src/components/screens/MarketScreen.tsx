@@ -43,8 +43,9 @@ export function MarketScreen({ state, act, pending }: ScreenProps) {
           <Coins n={me.coins} />
         </div>
         <p className="small muted">
-          Vende pela metade do valor e compra pelo dobro. Trocar com um amigo sai {MARKET.buyPct / MARKET.sellPct}× mais
-          barato; a Vendinha é para ninguém ficar travado.
+          Vende por {MARKET.sellPct}% do valor e compra por {market.buyPct}%
+          {market.buyPct < MARKET.buyPct ? " (mais barato desde que a Vendinha ficou pronta)" : ""}. Trocar com um amigo sai
+          bem mais barato; a loja é para ninguém ficar travado.
         </p>
         <div className="seg">
           <button className="btn small" aria-pressed={mode === "buy"} onClick={() => setMode("buy")}>Comprar</button>
@@ -55,7 +56,7 @@ export function MarketScreen({ state, act, pending }: ScreenProps) {
           <>
             <div className="bar"><i style={{ width: `${Math.min(100, (market.used / market.limit) * 100)}%` }} /></div>
             <p className="small muted">Limite de hoje: {fmt(market.used)} de {fmt(market.limit)} pontos usados. Cresce com o seu nível.</p>
-            {RESOURCE_KEYS.map((r) => <BuyRow key={r} r={r} coins={me.coins} left={left} have={inventory[r] ?? 0} act={act} pending={pending} />)}
+            {RESOURCE_KEYS.map((r) => <BuyRow key={r} r={r} coins={me.coins} left={left} buyPct={market.buyPct} have={inventory[r] ?? 0} act={act} pending={pending} />)}
           </>
         ) : null}
         {mode === "sell" && spare > 0 && sellValue(raw, spare) > 0 && (
@@ -80,14 +81,14 @@ export function MarketScreen({ state, act, pending }: ScreenProps) {
 
 type RowProps = Pick<ScreenProps, "act" | "pending"> & { r: ResourceKey; have: number };
 
-function BuyRow({ r, coins, left, have, act, pending }: RowProps & { coins: number; left: number }) {
-  const max = maxBuyable(r, coins, left);
+function BuyRow({ r, coins, left, have, buyPct, act, pending }: RowProps & { coins: number; left: number; buyPct: number }) {
+  const max = maxBuyable(r, coins, left, buyPct);
   return (
     <div className="market-row">
       <ResIcon r={r} scale={3} />
       <div className="grow">
         <b>{RESOURCES[r].name}</b>
-        <div className="small muted">{buyCost(r, 1)} moedas cada · você tem {fmt(have)}</div>
+        <div className="small muted">{buyCost(r, 1, buyPct)} moedas cada · você tem {fmt(have)}</div>
       </div>
       {[1, 10].map((n) => (
         <button key={n} className="btn small secondary" disabled={pending || max < n} onClick={() => act(() => buyAction(r, n))}>+{n}</button>

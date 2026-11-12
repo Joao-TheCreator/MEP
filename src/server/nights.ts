@@ -134,7 +134,7 @@ export async function resolvePendingNights(tx: Tx, farm: NightFarmRow, now: Date
     const night = farm.nights_survived + 1;
     const active = activeCount(members, at);
     const fireMax = fireMaxHp(active, farm.level);
-    const fireHp = fireAfterRest(farm.fire_hp ?? fireMax, fireMax);
+    const fireHp = fireAfterRest(farm.fire_hp ?? fireMax, fireMax, farm.level);
     const team = teamFor(members, night, active);
     const out = resolveNight({
       night,

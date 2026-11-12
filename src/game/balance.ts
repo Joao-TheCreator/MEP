@@ -29,7 +29,7 @@ import {
   type GearItem,
   type TalentPicks,
 } from "./character";
-import { bagPoints, buildingCostScale, ratePerHour, storageHours, workshopUpgradeCost } from "./rules";
+import { bagPoints, buildingCostScale, farmEffects, ratePerHour, storageHours, workshopUpgradeCost } from "./rules";
 import { farmDefense, fireAfterRest, fireMaxHp, patrolXp, residentPower, resolveNight, roleEffects } from "./night";
 
 export interface Archetype {
@@ -99,12 +99,12 @@ function bonusesOf(p: Person, level: number) {
 }
 
 /** Cheapest next gear step (tier first, then refine), in points; null when maxed. */
-function nextGearStep(g: SimGear): { slot: SimSlot; kind: "tier" | "refine"; cost: number } | null {
+function nextGearStep(g: SimGear, refineDiscountPct = 0): { slot: SimSlot; kind: "tier" | "refine"; cost: number } | null {
   let best: { slot: SimSlot; kind: "tier" | "refine"; cost: number } | null = null;
   for (const slot of SIM_SLOTS) {
     const it = g[slot];
-    const up = gearUpgradeCost(it.tier);
-    const ref = refineCost(it.refine);
+    const up = gearUpgradeCost(it.tier, slot);
+    const ref = refineCost(it.refine, slot, refineDiscountPct);
     const step = up ? { slot, kind: "tier" as const, cost: bagPoints(up) } : ref ? { slot, kind: "refine" as const, cost: bagPoints(ref) } : null;
     // weapon a little cheaper to the policy: it is what wins the night
     const weight = slot === "weapon" ? 0.8 : 1;
@@ -185,7 +185,7 @@ export function simulateSeason(mix: GroupMix, opts: { carriedGear?: SimGear[]; m
         p.workshop++;
       }
       for (;;) {
-        const step = nextGearStep(p.gear);
+        const step = nextGearStep(p.gear, farmEffects(farmLevel).refineDiscountPct);
         if (!step || p.wallet.gear < step.cost) break;
         p.wallet.gear -= step.cost;
         const it = p.gear[step.slot];
@@ -203,7 +203,7 @@ export function simulateSeason(mix: GroupMix, opts: { carriedGear?: SimGear[]; m
 
     // ---- night ----
     const fireMax = fireMaxHp(members, farmLevel);
-    fire = fireAfterRest(fire, fireMax);
+    fire = fireAfterRest(fire, fireMax, farmLevel);
     // expected values: each person patrols with their archetype's chance, playing their role
     const expected = { tank: 0, support: 0 };
     let patrolPower = 0;

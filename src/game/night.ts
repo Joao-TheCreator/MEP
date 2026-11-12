@@ -12,6 +12,7 @@ import {
   type CharacterBonuses,
   type NightRoleKey,
 } from "./config";
+import { farmEffects } from "./rules";
 
 /** Members the horde is scaled to: the active ones, never fewer than the minimum. */
 export function hordeMembers(activeMembers: number): number {
@@ -93,16 +94,19 @@ export function nightComposition(
 /** The whole farm's defense: everyone's power plus the farm-level bonus. */
 export function farmDefense(residentPowers: number[], farmLevel: number): number {
   const sum = residentPowers.reduce((a, b) => a + b, 0);
-  return Math.round(sum * (1 + (COMBAT.farmDefensePctPerLevel * (farmLevel - 1)) / 100));
+  const pct = COMBAT.farmDefensePctPerLevel * (farmLevel - 1) + farmEffects(farmLevel).defensePct;
+  return Math.round(sum * (1 + pct / 100));
 }
 
 export function fireMaxHp(activeMembers: number, farmLevel: number): number {
-  return Math.round(FIRE.hpPerMember * hordeMembers(activeMembers) * (1 + (FIRE.hpPctPerFarmLevel * (farmLevel - 1)) / 100));
+  const pct = FIRE.hpPctPerFarmLevel * (farmLevel - 1) + farmEffects(farmLevel).fireHpPct;
+  return Math.round(FIRE.hpPerMember * hordeMembers(activeMembers) * (1 + pct / 100));
 }
 
-/** Fire HP after a day of rest (regen), before the night. */
-export function fireAfterRest(hp: number, maxHp: number): number {
-  return Math.min(maxHp, hp + Math.round((maxHp * FIRE.regenPctPerDay) / 100));
+/** Fire HP after a day of rest (regen), before the night. The Cozinha adds to the regen. */
+export function fireAfterRest(hp: number, maxHp: number, farmLevel = 1): number {
+  const pct = FIRE.regenPctPerDay + farmEffects(farmLevel).fireRegenPct;
+  return Math.min(maxHp, hp + Math.round((maxHp * pct) / 100));
 }
 
 export interface NightOutcome {
@@ -177,6 +181,7 @@ export function nightsFireLasts(params: {
   fireHp: number;
   fireMax: number;
   damageCutPct?: number;
+  farmLevel?: number;
 }): number | null {
   let hp = params.fireHp;
   for (let i = 0; i < 60; i++) {
@@ -188,7 +193,7 @@ export function nightsFireLasts(params: {
       damageCutPct: params.damageCutPct,
     });
     if (out.wiped) return i + 1;
-    hp = fireAfterRest(out.fireHp, params.fireMax);
+    hp = fireAfterRest(out.fireHp, params.fireMax, params.farmLevel);
   }
   return null;
 }

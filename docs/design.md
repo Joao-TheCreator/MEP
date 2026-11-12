@@ -440,9 +440,10 @@ itens ficam.** Código: `src/game/night.ts` (regras) e `src/game/balance.ts`
 
 ### 15.1 A noite
 
-- Toda noite às **20h** (horário de Brasília) a horda ataca. O servidor resolve as
+- Toda noite às **20h** (horário de Brasília) a horda ataca. A força cresce **11,5%
+  por noite** (era 10%; subiu com as obras da §20, que deixam o sítio mais forte). O servidor resolve as
   noites atrasadas pelo relógio, como a produção offline: ninguém precisa estar online.
-- **Força da horda** = `14 × moradores ativos × 1,10^(noite − 1)`. Ativo = coletou nas
+- **Força da horda** = `14 × moradores ativos × 1,115^(noite − 1)`. Ativo = coletou nas
   últimas 72 h; nunca menos de 4 (sítio pequeno não fica fácil demais).
 
 ### 15.2 A defesa
@@ -488,10 +489,10 @@ perfis de jogador:
 
 | Grupo | Composição | Cai na noite (temporada 1 → 2 → 3) |
 | --- | --- | --- |
-| Dedicado | 8 dedicados, 8 regulares, 4 casuais | 33 → 33 → 33 |
-| Típico | 4 dedicados, 8 regulares, 8 casuais | 31 → 31 → 31 |
-| Devagar | 6 regulares, 14 casuais | 28 → 28 → 28 |
-| Pequeno (5) | 2 dedicados, 2 regulares, 1 casual | 32 → 33 → 33 |
+| Dedicado | 8 dedicados, 8 regulares, 4 casuais | 33 → 34 → 34 |
+| Típico | 4 dedicados, 8 regulares, 8 casuais | 31 → 31 → 32 |
+| Devagar | 6 regulares, 14 casuais | 28 → 28 → 29 |
+| Pequeno (5) | 2 dedicados, 2 regulares, 1 casual | 32 → 33 → 34 |
 
 O que o simulador mostrou e as mudanças que resultaram:
 
@@ -682,3 +683,53 @@ papel na ronda ÷ moradores ativos (mínimo 4, como na horda).
 No simulador (§15.5), o grupo com time misto (3 atiradores, 1 tanque e 1 suporte em cada
 5) dura **1 noite a mais** que o mesmo grupo todo de atirador; no grupo pequeno, empata.
 Os números da horda não precisaram mudar: as metas de temporada continuam passando.
+
+## 20. Equipamento por espaço e obras novas (proposta do João, em revisão)
+
+### 20.1 Equipamento que usa as quatro profissões
+
+Antes, todo item custava Tábua + Barra + Ferramenta: só Carpinteiro e Ferreiro
+equipavam o grupo. Agora **cada espaço é feito de materiais diferentes**, valendo o mesmo
+em pontos (109 a 110 para Madeira → Bronze). Substitui a regra única da §12.2 e §12.3;
+o crescimento por tier (×1,9) e por refino (×1,18) não muda.
+
+| Espaço | Madeira → Bronze | Refino +0 → +1 |
+| --- | --- | --- |
+| Arma, Ferramenta | 10 Tábuas, 4 Barras, 1 Ferramenta | 2 Barras, 1 Ferramenta |
+| Corpo, Pés | 7 Queijos, 10 Tábuas | 2 Queijos, 4 Tábuas |
+| Cabeça, Mãos | 11 Rações, 11 Tábuas | 4 Rações, 4 Tábuas |
+| Broche, Pulseira | 4 Barras, 4 Queijos, 5 Rações | 2 Barras, 1 Queijo, 2 Rações |
+
+Ração e Queijo deixam de servir só para obra: Agricultor e Pecuarista passam a fazer
+equipamento também. Tudo continua comprável na Vendinha, mais caro.
+
+### 20.2 Cinco obras novas
+
+Depois do Moinho o sítio continua subindo, até o **nível 9**. Cada obra dá o +10% de
+produção do nível **e** um efeito próprio. Os custos abaixo são para 5 moradores ativos e
+crescem com o grupo (§15.5).
+
+| Obra | Do nível | Efeito | Custo (5 moradores) |
+| --- | --- | --- | --- |
+| Vendinha | 4 → 5 | A loja vende a 170% do valor (era 200%) | 1.800 Tábuas, 2.400 Madeiras, 3.600 Grãos, 600 Queijos, 90 Ferramentas |
+| Cerca | 5 → 6 | +15% de defesa à noite | 5.200 Tábuas, 6.900 Madeiras, 1.050 Barras, 210 Ferramentas |
+| Torre de vigia | 6 → 7 | +25% de vida máxima da fogueira | 7.950 Tábuas, 2.400 Barras, 480 Ferramentas, 2.000 Rações, 3.950 Minérios |
+| Cozinha | 7 → 8 | A fogueira recupera +15% da vida por dia (50% no total) | 4.100 Queijos, 6.850 Rações, 11.400 Leites, 5.500 Tábuas, 680 Ferramentas |
+| Forja comunitária | 8 → 9 | Refinar custa 15% menos | 7.850 Barras, 2.100 Ferramentas, 15.750 Minérios, 7.850 Tábuas, 1.550 Queijos |
+
+- A loja básica existe desde o começo; a obra Vendinha só melhora o preço. Com 170% ainda
+  não há lucro infinito (teste).
+- Os efeitos somam por cima dos bônus de nível do sítio que já existiam (+10% de defesa e
+  +25% de vida da fogueira por nível).
+- No mapa: Vendinha a oeste, Torre ao norte, Cozinha a leste, Forja comunitária e Cerca ao
+  sul, perto da fogueira. Sprites em `src/art/buildings.ts`.
+
+### 20.3 O que mudou no balanceamento
+
+- As obras agora **duram a temporada**: na primeira, nenhum grupo termina todas. O grupo
+  dedicado e o pequeno caem no nível 8; o devagar, no 7.
+- **Os itens guardados passaram a contar:** com eles, o grupo dedicado termina a Forja
+  comunitária a partir da 2ª temporada, e as temporadas seguintes duram 1 a 2 noites a mais.
+- A horda cresce 11,5% por noite (era 10%) para a temporada continuar em 3 a 5 semanas.
+- Limite: o simulador ainda **não** modela moedas, Vendinha, tarefas nem loot da ronda;
+  ele assume que o grupo troca materiais entre si sem perda.

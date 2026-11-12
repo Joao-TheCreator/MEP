@@ -128,7 +128,22 @@ export interface Building {
   /** Farm level required to work on this building (it raises the farm to level + 1). */
   fromLevel: number;
   cost: Bag;
-  effect: { storageHoursBonus?: number };
+  effect: BuildingEffect;
+}
+
+/** What a finished building gives the farm, on top of the farm level (design §20). */
+export interface BuildingEffect {
+  storageHoursBonus?: number;
+  /** Vendinha: the shop sells at this % of the point value instead of MARKET.buyPct. */
+  marketBuyPct?: number;
+  /** +% defense at night. */
+  defensePct?: number;
+  /** +% max campfire HP. */
+  fireHpPct?: number;
+  /** Extra % of max HP the fire recovers each day. */
+  fireRegenPct?: number;
+  /** % off the cost of refining gear. */
+  refineDiscountPct?: number;
 }
 
 export const BUILDINGS: Building[] = [
@@ -155,6 +170,47 @@ export const BUILDINGS: Building[] = [
     fromLevel: 3,
     cost: { plank: 300, feed: 300, cheese: 120, iron_bar: 100, tool: 40 },
     effect: {},
+  },
+  // Design §20: buildings that take the whole season and help at night.
+  {
+    key: "shop",
+    name: "Vendinha",
+    description: "Uma lojinha de verdade: comprar fica mais barato (170% do valor, em vez de 200%). Sítio nível 5.",
+    fromLevel: 4,
+    cost: { plank: 1800, wood: 2400, grain: 3600, cheese: 600, tool: 90 },
+    effect: { marketBuyPct: 170 },
+  },
+  {
+    key: "fence",
+    name: "Cerca",
+    description: "Cerca de madeira em volta do acampamento: +15% de defesa à noite. Sítio nível 6.",
+    fromLevel: 5,
+    cost: { plank: 5200, wood: 6900, iron_bar: 1050, tool: 210 },
+    effect: { defensePct: 15 },
+  },
+  {
+    key: "tower",
+    name: "Torre de vigia",
+    description: "Dá para ver a horda chegando: +25% de vida máxima da fogueira. Sítio nível 7.",
+    fromLevel: 6,
+    cost: { plank: 7950, iron_bar: 2400, tool: 480, feed: 2000, ore: 3950 },
+    effect: { fireHpPct: 25 },
+  },
+  {
+    key: "kitchen",
+    name: "Cozinha",
+    description: "Comida quente para quem fez a ronda: a fogueira recupera +15% da vida por dia. Sítio nível 8.",
+    fromLevel: 7,
+    cost: { cheese: 4100, feed: 6850, milk: 11400, plank: 5500, tool: 680 },
+    effect: { fireRegenPct: 15 },
+  },
+  {
+    key: "smithy",
+    name: "Forja comunitária",
+    description: "Uma forja grande para todos: refinar equipamento custa 15% menos. Sítio nível 9.",
+    fromLevel: 8,
+    cost: { iron_bar: 7850, tool: 2100, ore: 15750, plank: 7850, cheese: 1550 },
+    effect: { refineDiscountPct: 15 },
   },
 ];
 
@@ -389,8 +445,22 @@ export const TIERS: Record<TierKey, Tier> = {
 export const TIER_KEYS = Object.keys(TIERS) as TierKey[];
 
 export const GEAR = {
-  /** Cost to upgrade from tier 0 (Madeira) to tier 1 (Bronze). */
+  /** Cost to upgrade from tier 0 (Madeira) to tier 1 (Bronze): weapon and work tool. */
   baseUpgradeCost: { plank: 10, iron_bar: 4, tool: 1 } as Bag,
+  /**
+   * The same step for the other slots (design §12.2): about the same value in
+   * points, but made of what all four professions produce.
+   */
+  baseUpgradeCostBySlot: {
+    weapon: { plank: 10, iron_bar: 4, tool: 1 },
+    tool: { plank: 10, iron_bar: 4, tool: 1 },
+    body: { cheese: 7, plank: 10 },
+    feet: { cheese: 7, plank: 10 },
+    hat: { feed: 11, plank: 11 },
+    hands: { feed: 11, plank: 11 },
+    pin: { iron_bar: 4, cheese: 4, feed: 5 },
+    bracelet: { iron_bar: 4, cheese: 4, feed: 5 },
+  } as Record<string, Bag>,
   /** Each next tier costs this many times more. */
   upgradeCostGrowth: 1.9,
 } as const;
@@ -444,6 +514,17 @@ export const REFINE = {
   maxLevel: 99,
   /** Cost to refine from +r to +(r+1): ceil(value × (r + 1) × costGrowth^r) of each resource. */
   costPerLevel: { iron_bar: 2, tool: 0.5 } as Bag,
+  /** Per slot, like GEAR.baseUpgradeCostBySlot (about 35 points each). */
+  costPerLevelBySlot: {
+    weapon: { iron_bar: 2, tool: 0.5 },
+    tool: { iron_bar: 2, tool: 0.5 },
+    body: { cheese: 2, plank: 3.5 },
+    feet: { cheese: 2, plank: 3.5 },
+    hat: { feed: 3.5, plank: 3.5 },
+    hands: { feed: 3.5, plank: 3.5 },
+    pin: { iron_bar: 1.5, cheese: 1, feed: 1.5 },
+    bracelet: { iron_bar: 1.5, cheese: 1, feed: 1.5 },
+  } as Record<string, Bag>,
   /** Each refine level costs this many times more than the linear step (1 = linear). */
   costGrowth: 1.18,
 } as const;
@@ -466,7 +547,7 @@ export const NIGHT = {
   /** Horde strength on night 1, per active member of the farm. */
   baseHordePerMember: 14,
   /** Each night the horde is this many times stronger. */
-  growthPerNight: 1.1,
+  growthPerNight: 1.115,
   /** Members count as active if they collected in the last this-many hours. */
   activeWindowHours: 72,
   /** The horde never scales below this many members (small groups). */

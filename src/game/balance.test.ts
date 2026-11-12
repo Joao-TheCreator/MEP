@@ -46,6 +46,17 @@ describe("season balance", () => {
     }
   });
 
+  it("the buildings last the season: nobody finishes them all in the first one, and groups that play more get further (§20)", () => {
+    for (const r of Object.values(s1)) expect(r.farmLevel).toBeLessThan(9);
+    expect(s1.dedicated.farmLevel).toBeGreaterThan(s1.slow.farmLevel);
+    expect(s1.slow.farmLevel).toBeGreaterThanOrEqual(6);
+  });
+
+  it("the items kept after a wipe let a dedicated group finish the last building later on", () => {
+    const seasons = simulateSeasons(GROUPS.dedicated, 3);
+    expect(seasons[2].farmLevel).toBeGreaterThan(seasons[0].farmLevel);
+  });
+
   it("is deterministic", () => {
     expect(simulateSeason(GROUPS.typical).nights).toEqual(s1.typical.nights);
   });

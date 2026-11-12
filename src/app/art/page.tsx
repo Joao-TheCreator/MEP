@@ -78,14 +78,14 @@ export default function ArtPage() {
       </section>
       <section className="panel map-frame">
         <FarmScene
-          completed={["well", "barn", "mill"]}
+          completed={["well", "barn", "mill", "shop", "fence", "tower", "kitchen", "smithy"]}
           residents={AVATAR_KEYS.map((k, i) => ({ id: k, name: AVATARS[k].name, avatar: k, spot: i % 2 ? "camp" : SPOTS[i % SPOTS.length] }))}
           hour={21}
           fire={0.3}
         />
       </section>
       <section className="panel map-frame"><FarmMap completed={[]} building="well" /></section>
-      <section className="panel map-frame"><FarmMap completed={["well", "barn", "mill"]} /></section>
+      <section className="panel map-frame"><FarmMap completed={["well", "barn", "mill", "shop", "fence", "tower", "kitchen", "smithy"]} /></section>
 
       <section className="panel">
         <h2>Recursos</h2>

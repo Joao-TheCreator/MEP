@@ -25,6 +25,12 @@ describe("Vendinha (design §16)", () => {
     }
   });
 
+  it("the Vendinha building lowers the buying price to 170%, still without infinite money", () => {
+    expect(buyCost("plank", 10, 170)).toBe(68);
+    expect(maxBuyable("plank", 68, 1000, 170)).toBe(10);
+    for (const k of RECIPE_KEYS) expect(sellValue(RECIPES[k].output, 50)).toBeLessThan(bagBuyCost(recipeInputs(k, 50), 170));
+  });
+
   it("a solo level-1 player can buy one Bronze upgrade a day, and not much more", () => {
     // A level-1 farmer makes 60 points/hour: a full 8 h storage sells for 240 coins.
     const fullStorage = sellValue("grain", 480);
