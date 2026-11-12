@@ -735,3 +735,29 @@ export const BACKPACK = {
   /** Dismantling gives back this % of the materials the item would cost to make. */
   dismantlePct: 50,
 } as const;
+
+// ============================================================================
+// Phone notices (design §23): Web Push sent by the notify cron.
+// ============================================================================
+
+export type NotifyKind = "storage_full" | "horde" | "fire_low" | "wipe";
+export const NOTIFY_KINDS: readonly NotifyKind[] = ["storage_full", "horde", "fire_low", "wipe"];
+
+export const NOTIFY = {
+  /** Reminder to patrol from this hour (Brasília) until the attack (NIGHT.hour). */
+  hordeFromHour: 18,
+  /** Fire below this % of its max after a night: warn everyone. */
+  fireLowPct: 35,
+  /** Night and wipe notices are only sent within this many hours of the attack. */
+  nightNoticeHours: 12,
+  /** No notices between these hours (Brasília); what is due waits for the morning. */
+  quietFromHour: 22,
+  quietToHour: 7,
+  /** Names shown in the notices panel. */
+  labels: {
+    storage_full: "Armazém cheio",
+    horde: "Lembrete da ronda (18h)",
+    fire_low: "Fogueira baixa",
+    wipe: "A fogueira apagou",
+  } satisfies Record<NotifyKind, string>,
+} as const;

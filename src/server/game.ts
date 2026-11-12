@@ -17,6 +17,7 @@ import {
   type AttributeKey,
   type Building,
   type NightClassKey,
+  type NotifyKind,
   type NightRoleKey,
   type RecipeKey,
   type ResourceKey,
@@ -69,6 +70,7 @@ import {
   type TaskKind,
 } from "@/game/tasks";
 import { patrolRewards, replayPatrol, type HeroClass } from "@/game/patrol";
+import { notifyStateOf } from "./notices";
 import { addToBag, bagCapacity, dismantleValue, isWorthless, rollGearDrops, type BagItem } from "@/game/backpack";
 import { previousWeekStart, weekStart } from "@/game/week";
 import type { Sql } from "postgres";
@@ -105,6 +107,7 @@ interface PlayerRow extends CharacterRow {
   workshop_level: number;
   last_collected_at: Date;
   profession_changed_at: Date | null;
+  notify_prefs: Partial<Record<NotifyKind, boolean>> | null;
 }
 
 interface FarmRow extends NightFarmRow {
@@ -758,6 +761,8 @@ export interface GameState {
     lastCollectedAt: string;
     coins: number;
     energy: { now: number; max: number; patrolCost: number };
+    /** Phone notices (design §23): subscribed devices and which kinds are on. */
+    notify: { devices: number; on: Record<NotifyKind, boolean> };
     upgradeCost: Bag | null;
     /** Changing profession: what it costs now and when it is allowed (null = now). */
     professionChange: { cost: Bag; availableAt: string | null };
@@ -909,6 +914,7 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       lastCollectedAt: player.last_collected_at.toISOString(),
       coins: player.coins,
       energy: { now: energyOf(player, now), max: ENERGY.max, patrolCost: ENERGY.patrolCost },
+      notify: await notifyStateOf(player.id, player.notify_prefs),
       upgradeCost: workshopUpgradeCost(player.profession, player.workshop_level),
       professionChange: {
         cost: professionChangeCost(player.profession),

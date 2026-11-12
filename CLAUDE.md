@@ -103,4 +103,6 @@ Deploy na Vercel. Variáveis em `.env.example`.
   Fotos NÃO vão para o repositório. Diego = "Jondo", o líder (broche de chama).
 - Balancear construções para ~20 jogadores (custos pensados para 4–6).
 - Arquivo original da logo ainda precisa ser commitado em `public/brand/logo.png`.
-- Pós-MVP: Cozinheiro, Comerciante, eventos semanais, push quando o armazém encher.
+- Avisos no celular prontos (design §23); só funcionam depois do deploy, com as chaves VAPID
+  e o `CRON_SECRET` (ver `.env.example`).
+- Pós-MVP: Cozinheiro, Comerciante, eventos semanais.

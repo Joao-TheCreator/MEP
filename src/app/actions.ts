@@ -18,12 +18,14 @@ import {
   TIERS,
   type AttributeKey,
   type NightClassKey,
+  NOTIFY_KINDS,
   type SlotKey,
 } from "@/game/config";
 import { currentUser, destroySession, loginWithPassword, signupWithPassword } from "@/server/auth";
 import { passwordProblem } from "@/server/password";
 import { validSpecialTicks, type HeroClass } from "@/game/patrol";
 import * as game from "@/server/game";
+import * as notices from "@/server/notices";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -357,5 +359,43 @@ export async function dismantleItemAction(itemId: string): Promise<ActionResult>
     const back = await game.dismantleItem(user.id, z.string().min(1).max(80).parse(itemId));
     const list = (Object.entries(back) as [(typeof RESOURCE_KEYS)[number], number][]).map(([k, n]) => `${n} ${RESOURCES[k].name}`).join(", ");
     return list ? `Desmontou o item: ${list}.` : "Desmontou o item.";
+  });
+}
+
+// ---------------- phone notices (design §23) ----------------
+
+const PushSub = z.object({
+  endpoint: z.string().url().max(1000),
+  keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
+});
+
+async function requirePlayer() {
+  const user = await requireUser();
+  const player = await game.getPlayer(user.id);
+  if (!player) redirect("/onboarding");
+  return player;
+}
+
+export async function subscribePushAction(sub: unknown): Promise<ActionResult> {
+  const player = await requirePlayer();
+  return run(async () => {
+    await notices.saveSubscription(player.id, PushSub.parse(sub));
+    return "Avisos ligados neste aparelho.";
+  });
+}
+
+export async function unsubscribePushAction(endpoint: string): Promise<ActionResult> {
+  const player = await requirePlayer();
+  return run(async () => {
+    await notices.removeSubscription(player.id, z.string().max(1000).parse(endpoint));
+    return "Avisos desligados neste aparelho.";
+  });
+}
+
+export async function notifyPrefAction(kind: string, on: boolean): Promise<ActionResult> {
+  const player = await requirePlayer();
+  return run(async () => {
+    await notices.setNotifyPref(player.id, z.enum(NOTIFY_KINDS as [string, ...string[]]).parse(kind) as (typeof NOTIFY_KINDS)[number], z.boolean().parse(on));
+    return on ? "Aviso ligado." : "Aviso desligado.";
   });
 }
