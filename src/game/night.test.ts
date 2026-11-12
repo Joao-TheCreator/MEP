@@ -93,19 +93,38 @@ describe("night roles (design §19)", () => {
   });
 
   it("tanks cut the fire's damage and supports boost everyone, both capped", () => {
-    expect(nightComposition(team(20, 0, 0), 0, 20)).toMatchObject({ damageCutPct: 0, supportBoostPct: 0, missing: ["tank", "support"] });
+    expect(nightComposition(team(20, 0, 0), 0, 20)).toMatchObject({ damageCutPct: 0, supportBoostPct: 0, missing: ["tank", "support", "healer", "scout"] });
     expect(nightComposition(team(18, 2, 0), 0, 20).damageCutPct).toBe(20);
     expect(nightComposition(team(16, 4, 0), 0, 20).damageCutPct).toBe(40);
     expect(nightComposition(team(10, 10, 0), 0, 20).damageCutPct).toBe(40); // capped
     expect(nightComposition(team(18, 0, 2), 0, 20).supportBoostPct).toBe(15);
     expect(nightComposition(team(10, 0, 10), 0, 20).supportBoostPct).toBe(30); // capped
-    expect(nightComposition(team(12, 4, 4), 0, 20)).toMatchObject({ counts: { shooter: 12, tank: 4, support: 4 }, missing: [] });
+    expect(nightComposition(team(12, 4, 4), 0, 20)).toMatchObject({ counts: { shooter: 12, tank: 4, support: 4 }, missing: ["healer", "scout"] });
+  });
+
+  it("healers give the fire back life after the attack and scouts weaken the horde, both capped", () => {
+    const with_ = (role: "healer" | "scout", n: number) =>
+      nightComposition([...team(20 - n, 0, 0), ...Array.from({ length: n }, () => ({ role, power: residentPower(1, lvl1, true, role) }))], 0, 20);
+    expect(with_("healer", 2).fireHealPct).toBe(15);
+    expect(with_("healer", 10).fireHealPct).toBe(30); // capped
+    expect(with_("scout", 2).hordeCutPct).toBe(10);
+    expect(with_("scout", 10).hordeCutPct).toBe(20); // capped
+    expect(with_("healer", 4).missing).toEqual(["tank", "support", "scout"]);
+
+    const base = resolveNight({ night: 10, activeMembers: 20, defense: 0, fireHp: 5000 });
+    const scouted = resolveNight({ night: 10, activeMembers: 20, defense: 0, fireHp: 5000, hordeCutPct: 20 });
+    expect(scouted.horde).toBe(Math.round(base.horde * 0.8));
+    const healed = resolveNight({ night: 10, activeMembers: 20, defense: 0, fireHp: 5000, fireHealPct: 10, fireMax: 6000 });
+    expect(healed.fireHp).toBe(Math.min(6000, base.fireHp + 600));
+    // a fire that went out is not healed back
+    const out = resolveNight({ night: 10, activeMembers: 20, defense: 0, fireHp: 1, fireHealPct: 30, fireMax: 6000 });
+    expect(out).toMatchObject({ fireHp: 0, wiped: true });
   });
 
   it("those who rest add their power but no role effect", () => {
     const c = nightComposition(team(2, 0, 0), 100, 20);
     expect(c.power).toBeCloseTo(2 * power("shooter") + 100);
-    expect(c.missing).toEqual(["tank", "support"]);
+    expect(c.missing).toEqual(["tank", "support", "healer", "scout"]);
   });
 
   it("a mixed team beats any single-class team", () => {

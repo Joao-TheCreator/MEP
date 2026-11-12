@@ -654,7 +654,7 @@ export const PATROL = {
 // team does better than everyone on the same class.
 // ============================================================================
 
-export type NightRoleKey = "shooter" | "tank" | "support";
+export type NightRoleKey = "shooter" | "tank" | "support" | "healer" | "scout";
 
 export const NIGHT_ROLES = {
   shooter: {
@@ -679,6 +679,24 @@ export const NIGHT_ROLES = {
     boostCapPct: 30,
     description: "Anima o time: até +30% de força para todos na ronda.",
   },
+  healer: {
+    name: "Cura",
+    powerMultiplier: 0.9,
+    /** After the attack, the fire gets back this % of its max HP per 1% of the active members patrolling as healers. */
+    fireHealPerSharePct: 1.5,
+    fireHealCapPct: 30,
+    description: "Cuida da fogueira: depois do ataque, ela recupera até 30% da vida.",
+  },
+  scout: {
+    name: "Batedor",
+    powerMultiplier: 1,
+    /** The horde is this % weaker per 1% of the active members patrolling as scouts. */
+    hordeCutPerSharePct: 1,
+    hordeCutCapPct: 20,
+    /** Extra loot rolls on the scout's own patrol (when it earns at least one star). */
+    extraLootRolls: 1,
+    description: "Acha a horda antes: ela chega até 20% mais fraca, e você acha mais coisa na ronda.",
+  },
 } as const;
 export const NIGHT_ROLE_KEYS = Object.keys(NIGHT_ROLES) as NightRoleKey[];
 
@@ -687,12 +705,12 @@ export const NIGHT_CLASS_ROLE: Record<NightClassKey, NightRoleKey> = {
   volley: "shooter",
   mattress: "tank",
   guitar: "support",
-  cook: "shooter",
-  lantern: "shooter",
+  cook: "healer",
+  lantern: "scout",
 };
 
 /** Night classes a player can pick today. */
-export const PLAYABLE_NIGHT_CLASSES = ["volley", "mattress", "guitar"] as const satisfies readonly NightClassKey[];
+export const PLAYABLE_NIGHT_CLASSES = ["volley", "mattress", "guitar", "cook", "lantern"] as const satisfies readonly NightClassKey[];
 
 // ============================================================================
 // Backpack (design §21): gear found on patrols, equipped or dismantled.

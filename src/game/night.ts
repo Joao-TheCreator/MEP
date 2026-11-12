@@ -44,12 +44,18 @@ export function residentPower(
 }
 
 /** The group effects of the tanks and supports who patrolled, each with its cap. */
-export function roleEffects(counts: Pick<Record<NightRoleKey, number>, "tank" | "support">, activeMembers: number) {
-  const sharePct = (n: number) => (100 * n) / hordeMembers(activeMembers);
+export function roleEffects(
+  counts: Partial<Record<NightRoleKey, number>>,
+  activeMembers: number,
+): { damageCutPct: number; supportBoostPct: number; fireHealPct: number; hordeCutPct: number } {
+  const sharePct = (n = 0) => (100 * n) / hordeMembers(activeMembers);
   const round1 = (v: number) => Math.round(v * 10) / 10;
+  const R = NIGHT_ROLES;
   return {
-    damageCutPct: round1(Math.min(NIGHT_ROLES.tank.damageCutCapPct, NIGHT_ROLES.tank.damageCutPerSharePct * sharePct(counts.tank))),
-    supportBoostPct: round1(Math.min(NIGHT_ROLES.support.boostCapPct, NIGHT_ROLES.support.boostPerSharePct * sharePct(counts.support))),
+    damageCutPct: round1(Math.min(R.tank.damageCutCapPct, R.tank.damageCutPerSharePct * sharePct(counts.tank))),
+    supportBoostPct: round1(Math.min(R.support.boostCapPct, R.support.boostPerSharePct * sharePct(counts.support))),
+    fireHealPct: round1(Math.min(R.healer.fireHealCapPct, R.healer.fireHealPerSharePct * sharePct(counts.healer))),
+    hordeCutPct: round1(Math.min(R.scout.hordeCutCapPct, R.scout.hordeCutPerSharePct * sharePct(counts.scout))),
   };
 }
 
@@ -60,6 +66,10 @@ export interface NightComposition {
   damageCutPct: number;
   /** % more power for everyone patrolling, from the supports. */
   supportBoostPct: number;
+  /** % of max HP the fire gets back after the attack, from the healers. */
+  fireHealPct: number;
+  /** % weaker horde, from the scouts. */
+  hordeCutPct: number;
   /** How many of each role patrolled. */
   counts: Record<NightRoleKey, number>;
   /** Roles nobody is playing tonight. */
@@ -80,12 +90,14 @@ export function nightComposition(
 ): NightComposition {
   const counts = Object.fromEntries(NIGHT_ROLE_KEYS.map((k) => [k, 0])) as Record<NightRoleKey, number>;
   for (const p of patrollers) counts[p.role] += 1;
-  const { damageCutPct, supportBoostPct } = roleEffects(counts, activeMembers);
+  const { damageCutPct, supportBoostPct, fireHealPct, hordeCutPct } = roleEffects(counts, activeMembers);
   const patrolPower = patrollers.reduce((a, p) => a + p.power, 0);
   return {
     power: patrolPower * (1 + supportBoostPct / 100) + restingPower,
     damageCutPct,
     supportBoostPct,
+    fireHealPct,
+    hordeCutPct,
     counts,
     missing: NIGHT_ROLE_KEYS.filter((k) => counts[k] === 0),
   };
@@ -127,11 +139,18 @@ export function resolveNight(params: {
   fireHp: number;
   /** % of the damage the tanks hold back (design §19). */
   damageCutPct?: number;
+  /** % weaker horde, from the scouts (design §19). */
+  hordeCutPct?: number;
+  /** % of `fireMax` the healers give back after the attack, if the fire survived (design §19). */
+  fireHealPct?: number;
+  fireMax?: number;
 }): NightOutcome {
-  const horde = hordeStrength(params.night, params.activeMembers);
+  const horde = Math.round(hordeStrength(params.night, params.activeMembers) * (1 - (params.hordeCutPct ?? 0) / 100));
   const damage = Math.round(Math.max(0, horde - params.defense) * (1 - (params.damageCutPct ?? 0) / 100));
-  const fireHp = Math.max(0, params.fireHp - damage);
-  return { horde, defense: params.defense, damage, fireHp, wiped: fireHp === 0 };
+  const left = Math.max(0, params.fireHp - damage);
+  const heal = left > 0 && params.fireMax ? Math.round((params.fireMax * (params.fireHealPct ?? 0)) / 100) : 0;
+  const fireHp = Math.min(params.fireMax ?? Infinity, left + heal);
+  return { horde, defense: params.defense, damage, fireHp, wiped: left === 0 };
 }
 
 /** XP for playing the patrol on a night the farm survived. */
@@ -181,6 +200,8 @@ export function nightsFireLasts(params: {
   fireHp: number;
   fireMax: number;
   damageCutPct?: number;
+  hordeCutPct?: number;
+  fireHealPct?: number;
   farmLevel?: number;
 }): number | null {
   let hp = params.fireHp;
@@ -191,6 +212,9 @@ export function nightsFireLasts(params: {
       defense: params.defense,
       fireHp: hp,
       damageCutPct: params.damageCutPct,
+      hordeCutPct: params.hordeCutPct,
+      fireHealPct: params.fireHealPct,
+      fireMax: params.fireMax,
     });
     if (out.wiped) return i + 1;
     hp = fireAfterRest(out.fireHp, params.fireMax, params.farmLevel);

@@ -490,7 +490,7 @@ perfis de jogador:
 | Grupo | Composição | Cai na noite (temporada 1 → 2 → 3) |
 | --- | --- | --- |
 | Dedicado | 8 dedicados, 8 regulares, 4 casuais | 33 → 34 → 34 |
-| Típico | 4 dedicados, 8 regulares, 8 casuais | 31 → 31 → 32 |
+| Típico | 4 dedicados, 8 regulares, 8 casuais | 31 → 32 → 32 |
 | Devagar | 6 regulares, 14 casuais | 28 → 28 → 29 |
 | Pequeno (5) | 2 dedicados, 2 regulares, 1 casual | 32 → 33 → 34 |
 
@@ -668,6 +668,8 @@ papel na ronda ÷ moradores ativos (mínimo 4, como na horda).
 | Jogador de vôlei | Atirador | ×1,3 | — | — |
 | Colchonete | Tanque | ×1,0 | A fogueira perde menos do que passou da defesa: corte = 2 × fatia | 40% |
 | Violão | Suporte | ×0,8 | Mais força para todos na ronda: bônus = 1,5 × fatia | +30% |
+| Cozinheira | Cura | ×0,9 | Depois do ataque, a fogueira recupera 1,5 × fatia da vida máxima (§22) | 30% |
+| Lanterna | Batedor | ×1,0 | A horda chega mais fraca: corte = 1 × fatia; e +1 sorteio de loot na própria ronda (§22) | 20% |
 
 - Os dois tetos chegam com **1 em cada 5 moradores** no papel. Passou disso, mais gente
   do mesmo papel não ajuda.
@@ -677,8 +679,7 @@ papel na ronda ÷ moradores ativos (mínimo 4, como na horda).
   morador): 20 atiradores = 26, sem corte; **12 atiradores + 4 tanques + 4 suportes =
   29,6 e 40% menos dano**; 20 tanques = 20 com corte de 40%; 20 suportes = 20,8.
 - **Trocar de classe** é livre de dia e fica travado depois de fazer a ronda da noite.
-- O Violão usa o minijogo do Vôlei até ter o seu (roadmap, fase 8). Cozinheira (cura) e
-  Lanterna (batedor) entram nessa mesma fase.
+- Cada classe tem o seu minijogo (§22).
 
 No simulador (§15.5), o grupo com time misto (3 atiradores, 1 tanque e 1 suporte em cada
 5) dura **1 noite a mais** que o mesmo grupo todo de atirador; no grupo pequeno, empata.
@@ -767,3 +768,44 @@ que o Rodrigo já tinha deixado no #20: `BAG`, `bagPagesOpen`, `gearSuggestions`
   os itens continuam lá; só não entra item novo até liberar espaço.
 - **Limite:** o simulador da §15.5 não modela os itens achados; eles deixam as temporadas
   um pouco mais longas do que a tabela mostra.
+
+## 22. Cozinheira, Lanterna e o minijogo de cada classe (proposta do João, em revisão)
+
+**As cinco classes da noite são jogáveis, cada uma com papel no grupo (§19) e jeito
+próprio no minijogo da ronda.** Código: `CLASSES` em `src/game/patrol.ts` (minijogo) e
+`NIGHT_ROLES` em `config.ts` (papel).
+
+### 22.1 Papéis novos
+
+| Papel | Efeito | Conta | Teto |
+| --- | --- | --- | --- |
+| Cura (Cozinheira) | A fogueira recupera vida **depois** do ataque, se não apagou | 1,5 × fatia da vida máxima | 30% |
+| Batedor (Lanterna) | A horda chega mais fraca | 1 × fatia | 20% |
+
+- Ordem da noite: `horda × (1 − corte do batedor)` → `dano = max(0, horda − defesa) ×
+  (1 − corte do tanque)` → se a fogueira não apagou, `+ cura × vida máxima` (até o máximo).
+  A cura **não** salva uma fogueira que apagou.
+- O Batedor também acha mais na própria ronda: **+1 sorteio** de material e +1 chance de
+  item (§21), se a ronda der ao menos 1 estrela.
+- A tela da Noite mostra a horda já com o corte do batedor e os cinco papéis do time.
+
+### 22.2 Minijogo de cada classe
+
+| Classe | Vida | Ataque | Especial |
+| --- | --- | --- | --- |
+| Vôlei | — | bola à distância | (igual a antes) |
+| Colchonete | — | corpo a corpo | (igual a antes) |
+| Violão | 65 | nota à distância (40), dano 7 | **Acorde:** 12 em todos e deixa todos lentos (metade da velocidade) por 5 s |
+| Cozinheira | 110 | concha, corpo a corpo, dano 10 | **Marmita:** acampamento +20% da vida e a heroína +50% |
+| Lanterna | 70 | luz à distância (32), dano 9 | **Farol:** 6 nos inimigos perto (50) e eles ficam parados 3 s |
+
+Ajustado jogando as sementes 1 a 8 com o especial usado assim que carrega: as cinco
+classes ganham quase sempre, com estrelas variando de 1 a 3.
+
+### 22.3 Balanceamento
+
+No simulador (§15.5) o time misto passou a ser **3 atiradores e 1 de cada outro papel em
+cada 7**. Ele dura 0 a 2 noites a mais que o grupo todo de atirador (tabela da §15.5); a
+horda não precisou mudar. Um time com exatamente 1 de cada papel em cada 5 também foi
+testado: rende cerca de 1 noite a mais e o grupo dedicado termina todas as obras já na
+primeira temporada. Por isso a Cura e o Batedor têm tetos menores que o Tanque e o Suporte.

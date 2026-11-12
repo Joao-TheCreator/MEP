@@ -134,9 +134,9 @@ export interface SeasonResult {
   farmLevel: number;
 }
 
-/** Night roles of the group: a mixed team (3 shooters, 1 tank, 1 support in every 5) or everyone shooting. */
+/** Night roles of the group: a mixed team (3 shooters and one of each other role in every 7) or everyone shooting. */
 export type TeamKind = "mixed" | "shooters";
-const MIXED: NightRoleKey[] = ["shooter", "shooter", "shooter", "tank", "support"];
+const MIXED: NightRoleKey[] = ["shooter", "shooter", "shooter", "tank", "support", "healer", "scout"];
 
 export function simulateSeason(mix: GroupMix, opts: { carriedGear?: SimGear[]; maxNights?: number; team?: TeamKind } = {}): SeasonResult {
   const people: Person[] = [];
@@ -205,7 +205,7 @@ export function simulateSeason(mix: GroupMix, opts: { carriedGear?: SimGear[]; m
     const fireMax = fireMaxHp(members, farmLevel);
     fire = fireAfterRest(fire, fireMax, farmLevel);
     // expected values: each person patrols with their archetype's chance, playing their role
-    const expected = { tank: 0, support: 0 };
+    const expected: Partial<Record<NightRoleKey, number>> = {};
     let patrolPower = 0;
     let restPower = 0;
     for (const p of people) {
@@ -214,7 +214,7 @@ export function simulateSeason(mix: GroupMix, opts: { carriedGear?: SimGear[]; m
       const b = bonusesOf(p, level);
       patrolPower += residentPower(level, b, true, p.role) * c;
       restPower += residentPower(level, b, false) * (1 - c);
-      if (p.role !== "shooter") expected[p.role] += c;
+      expected[p.role] = (expected[p.role] ?? 0) + c;
     }
     const fx = roleEffects(expected, members);
     const out = resolveNight({
@@ -223,6 +223,9 @@ export function simulateSeason(mix: GroupMix, opts: { carriedGear?: SimGear[]; m
       defense: farmDefense([patrolPower * (1 + fx.supportBoostPct / 100) + restPower], farmLevel),
       fireHp: fire,
       damageCutPct: fx.damageCutPct,
+      hordeCutPct: fx.hordeCutPct,
+      fireHealPct: fx.fireHealPct,
+      fireMax,
     });
     fire = out.fireHp;
     const levels = people.map((p) => levelFromXp(p.xp).level);

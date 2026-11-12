@@ -56,6 +56,9 @@ export interface NightFarmRow {
 export interface LastNight extends NightOutcome {
   /** % of the damage the tanks held back (absent on nights before the roles existed). */
   damageCutPct?: number;
+  /** % weaker horde from the scouts, and % of max HP the healers gave back (design §22). */
+  hordeCutPct?: number;
+  fireHealPct?: number;
   night: number;
   at: string;
   season: number;
@@ -142,8 +145,14 @@ export async function resolvePendingNights(tx: Tx, farm: NightFarmRow, now: Date
       defense: defenseOf(team, farm.level),
       fireHp,
       damageCutPct: team.damageCutPct,
+      hordeCutPct: team.hordeCutPct,
+      fireHealPct: team.fireHealPct,
+      fireMax,
     });
-    last = { ...out, night, at: at.toISOString(), season: farm.season, damageCutPct: team.damageCutPct };
+    last = {
+      ...out, night, at: at.toISOString(), season: farm.season,
+      damageCutPct: team.damageCutPct, hordeCutPct: team.hordeCutPct, fireHealPct: team.fireHealPct,
+    };
 
     if (out.wiped) {
       await wipeFarm(tx, farm, night, at);
