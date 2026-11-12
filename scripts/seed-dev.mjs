@@ -39,6 +39,13 @@ const GEAR = [
   { weapon: { tier: "iron", refine: 2 }, body: { tier: "bronze", refine: 0 } },
   { weapon: { tier: "silver", refine: 1 }, body: { tier: "iron", refine: 0 }, tool: { tier: "bronze", refine: 0 } },
 ];
+// A few found items in some backpacks (design §21), to try equipping and dismantling.
+const BAGS = [
+  [{ slot: "hat", tier: "bronze", refine: 0 }, { slot: "weapon", tier: "iron", refine: 1 }, { slot: "body", tier: "bronze", refine: 0 }],
+  [],
+  [{ slot: "feet", tier: "bronze", refine: 0 }, { slot: "pin", tier: "iron", refine: 0 }],
+  [{ slot: "weapon", tier: "bronze", refine: 0 }],
+];
 const STARTER = {
   farmer: { grain: 240, feed: 12 },
   rancher: { milk: 120, cheese: 8 },
@@ -63,10 +70,11 @@ try {
       const hoursAgo = 1 + (i * 37) % 9; // varied pending production, some storages full
       const [player] = await tx`
         INSERT INTO players (user_id, farm_id, display_name, avatar, profession, workshop_level, last_collected_at,
-                             xp, gear, night_class)
+                             xp, gear, night_class, bag)
         VALUES (${user.id}, ${farm.id}, ${name}, ${key}, ${profession}, ${1 + (i % 3)},
                 now() - make_interval(hours => ${hoursAgo}),
-                ${XP[i % XP.length]}, ${tx.json(GEAR[i % GEAR.length])}, ${["volley", "volley", "volley", "mattress", "guitar"][i % 5]})
+                ${XP[i % XP.length]}, ${tx.json(GEAR[i % GEAR.length])}, ${["volley", "volley", "volley", "mattress", "guitar"][i % 5]},
+                ${tx.json(BAGS[i % BAGS.length].map((it, j) => ({ id: `seed-${i}-${j}`, ...it })))})
         RETURNING id`;
       // everyone gets some planks, bars and tools too, to try the gear upgrades
       const bag = { ...STARTER[profession], plank: (STARTER[profession].plank ?? 0) + 25, iron_bar: (STARTER[profession].iron_bar ?? 0) + 12, tool: (STARTER[profession].tool ?? 0) + 2 };

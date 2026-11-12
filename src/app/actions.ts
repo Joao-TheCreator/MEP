@@ -15,6 +15,7 @@ import {
   RESOURCES,
   SLOTS,
   SLOT_KEYS,
+  TIERS,
   type AttributeKey,
   type NightClassKey,
   type SlotKey,
@@ -220,12 +221,15 @@ export async function finishPatrolAction(runId: string, specialTicks: number[]):
       .join(", ");
     const stars = r.stars === 1 ? "1 estrela" : `${r.stars} estrelas`;
     const gain = `+${r.coins} moedas${loot ? ` e ${loot}` : ""}`;
+    const found = r.found.length
+      ? ` Achou: ${r.found.map((it) => `${TIERS[it.tier].name} ${SLOTS[it.slot].itemName ?? SLOTS[it.slot].label}${it.refine ? ` +${it.refine}` : ""}`).join(", ")} (na mochila).`
+      : Object.keys(r.dismantledOnFind).length ? " Achou um item, mas a mochila estava cheia: virou material." : "";
     if (r.kind === "patrol") {
-      return r.counts
+      return (r.counts
         ? `Ronda feita com ${stars}: ${gain}. Você defende a noite ${r.night} com força total.`
-        : `Ronda feita com ${stars}: ${gain}.`;
+        : `Ronda feita com ${stars}: ${gain}.`) + found;
     }
-    return `Expedição com ${stars}: ${gain}.`;
+    return `Expedição com ${stars}: ${gain}.${found}`;
   });
 }
 
@@ -326,5 +330,32 @@ export async function claimTasksAction(): Promise<ActionResult> {
     return r.bonus
       ? `Todas as tarefas de hoje feitas! +${r.coins} moedas e +${r.xp} XP.`
       : `Tarefa concluída: +${r.coins} moedas e +${r.xp} XP.`;
+  });
+}
+
+// ---------------- backpack (design §21) ----------------
+
+export async function equipItemAction(itemId: string): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = await game.equipFromBag(user.id, z.string().min(1).max(80).parse(itemId));
+    return `Equipou ${r.tier} em ${SLOTS[r.slot].label}. O item antigo foi para a mochila.`;
+  });
+}
+
+export async function equipBestAction(): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = await game.equipBestFromBag(user.id);
+    return r.changed === 1 ? "Equipou 1 item melhor da mochila." : `Equipou ${r.changed} itens melhores da mochila.`;
+  });
+}
+
+export async function dismantleItemAction(itemId: string): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const back = await game.dismantleItem(user.id, z.string().min(1).max(80).parse(itemId));
+    const list = (Object.entries(back) as [(typeof RESOURCE_KEYS)[number], number][]).map(([k, n]) => `${n} ${RESOURCES[k].name}`).join(", ");
+    return list ? `Desmontou o item: ${list}.` : "Desmontou o item.";
   });
 }

@@ -5,7 +5,7 @@ import { nextStep, rewardPops, type HintInput, type Snapshot } from "./guide";
 const calm: HintInput = {
   pending: 0, capacity: 480, resourceName: "Grãos", hour: 10, patrolled: true, hordeBeatsDefense: false,
   nightsFireLasts: null, freeAttributePoints: 0, talentToPick: false, gearReady: null,
-  canUpgradeWorkshop: false, workshopName: "Arado", canDonateTo: null, taskReward: false, missingRole: null,
+  canUpgradeWorkshop: false, workshopName: "Arado", canDonateTo: null, taskReward: false, missingRole: null, betterInBag: false,
 };
 
 describe("next step hint", () => {
@@ -42,6 +42,11 @@ describe("next step hint", () => {
   it("suggests switching class when a role is missing and the patrol is still to be done", () => {
     expect(nextStep({ ...calm, patrolled: false, missingRole: "tanque" })).toMatchObject({ tab: "hero" });
     expect(nextStep({ ...calm, patrolled: true, missingRole: "tanque" }).tab).toBe("farm");
+  });
+
+  it("points to a better item in the backpack, after the attribute points", () => {
+    expect(nextStep({ ...calm, betterInBag: true })).toMatchObject({ tab: "hero" });
+    expect(nextStep({ ...calm, betterInBag: true, freeAttributePoints: 1 }).text).toContain("atributo");
   });
 
   it("a finished task comes before the personal progress", () => {
