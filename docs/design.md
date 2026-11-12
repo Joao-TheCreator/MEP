@@ -809,3 +809,30 @@ cada 7**. Ele dura 0 a 2 noites a mais que o grupo todo de atirador (tabela da �
 horda não precisou mudar. Um time com exatamente 1 de cada papel em cada 5 também foi
 testado: rende cerca de 1 noite a mais e o grupo dedicado termina todas as obras já na
 primeira temporada. Por isso a Cura e o Batedor têm tetos menores que o Tanque e o Suporte.
+
+## 23. Avisos no celular (proposta do João, em revisão)
+
+**O jogo chama a pessoa de volta na hora certa, com o app fechado.** São avisos Web Push:
+no Android funcionam pelo navegador; no iPhone, só com o app instalado na tela inicial.
+Código: `src/game/notify.ts` (quando avisar, puro e testado), `src/server/notices.ts`
+(cron e inscrições) e `public/sw.js` (mostra o aviso); números em `NOTIFY` (`config.ts`).
+
+| Aviso | Quando | Para quem | Uma vez por |
+| --- | --- | --- | --- |
+| Armazém cheio | o armazém do morador encheu (a produção parou) | o morador | cada vez que enche |
+| Lembrete da ronda | entre 18h e 20h, sem ronda hoje e com energia para ela | o morador | noite |
+| Fogueira baixa | depois do ataque, a fogueira ficou abaixo de **35%** | todo o sítio | noite |
+| A fogueira apagou | wipe (§15.4) | todo o sítio | temporada |
+
+- **Silêncio:** nada é enviado entre **22h e 7h** (Brasília). O que vencer nesse horário
+  sai às 7h. Avisos de noite e de wipe valem só nas **12 h** depois do ataque.
+- **Sem repetir:** cada (pessoa, tipo, ocorrência) fica em `notifications_sent`.
+- **Cada um escolhe:** no sino 🔔 da barra de cima a pessoa liga os avisos no aparelho e
+  desliga os tipos que não quer (`players.notify_prefs`).
+- **Quem dispara:** `/api/cron/notify` (com `CRON_SECRET`), chamado a cada 30 min por um
+  workflow do GitHub (`.github/workflows/notify.yml`). O cron também **resolve as noites na
+  hora** (`resolvePendingNights`), então o ataque das 20h acontece mesmo sem ninguém abrir
+  o jogo.
+- **Para ligar no deploy:** gerar as chaves (`npx web-push generate-vapid-keys`), pôr
+  `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` e `CRON_SECRET` na
+  Vercel, e `NOTIFY_URL` + `CRON_SECRET` nos secrets do repositório no GitHub.
