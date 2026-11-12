@@ -4,7 +4,9 @@ import { PROFESSIONS, RECIPES, RECIPE_KEYS, RESOURCES } from "@/game/config";
 import { computeProduction, hasEnough, maxCraftable, ratePerHour, storageHours } from "@/game/rules";
 import { collectAction, craftAction, upgradeAction } from "@/app/actions";
 import { Res, ResIcon, ResList } from "../Res";
+import { useState } from "react";
 import { TasksPanel } from "./TasksPanel";
+import { Pane, Split, SplitMain } from "./Split";
 import type { ScreenProps } from "./types";
 
 export function WorkScreen(props: ScreenProps) {
@@ -25,9 +27,17 @@ export function WorkScreen(props: ScreenProps) {
   const pct = Math.min(1, elapsedH / cap);
   const recipes = RECIPE_KEYS.filter((k) => RECIPES[k].profession === me.profession);
 
+  const [pane, setPane] = useState("tasks");
+  const tabs = [
+    { key: "tasks", label: state.tasks.claimable ? "Tarefas •" : "Tarefas" },
+    { key: "recipes", label: "Receitas" },
+    { key: "upgrade", label: "Melhorar" },
+  ];
+
   return (
-    <>
-      <TasksPanel {...props} />
+    <Split tabs={tabs} active={pane} onPick={setPane}>
+      <Pane name="tasks"><TasksPanel {...props} /></Pane>
+      <SplitMain>
       <section className="panel stack">
         <div className="row between">
           <div>
@@ -49,7 +59,9 @@ export function WorkScreen(props: ScreenProps) {
           Coletar
         </button>
       </section>
+      </SplitMain>
 
+      <Pane name="recipes">
       <section className="panel stack">
         <h2>Receitas</h2>
         {recipes.map((k) => {
@@ -73,7 +85,9 @@ export function WorkScreen(props: ScreenProps) {
           );
         })}
       </section>
+      </Pane>
 
+      <Pane name="upgrade">
       <section className="panel stack">
         <h2>Melhorar {prof.workshop.name}</h2>
         {me.upgradeCost ? (
@@ -90,6 +104,7 @@ export function WorkScreen(props: ScreenProps) {
           <p>Nível máximo!</p>
         )}
       </section>
-    </>
+      </Pane>
+    </Split>
   );
 }
