@@ -22,6 +22,9 @@ export async function createLoginToken(email: string): Promise<string | null> {
     SELECT count(*)::int AS count FROM login_tokens
     WHERE email = ${email} AND created_at > now() - interval '15 minutes'`;
   if (count >= MAX_TOKENS_PER_WINDOW) return null;
+  // Housekeeping: drop login links that expired more than a day ago (the dev seed
+  // prints 7-day links, so delete by expiry, not by creation date).
+  await sql`DELETE FROM login_tokens WHERE expires_at < now() - interval '1 day'`;
   const token = newToken();
   await sql`
     INSERT INTO login_tokens (token_hash, email, expires_at)
@@ -39,6 +42,8 @@ export async function consumeLoginToken(token: string): Promise<boolean> {
       WHERE token_hash = ${hash(token)} AND used_at IS NULL AND expires_at > now()
       RETURNING email`;
     if (rows.length === 0) return false;
+    // Housekeeping: drop expired sessions (of anyone) on each login.
+    await tx`DELETE FROM sessions WHERE expires_at < now()`;
     const [user] = await tx<{ id: string }[]>`
       INSERT INTO users (email) VALUES (${rows[0].email})
       ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
