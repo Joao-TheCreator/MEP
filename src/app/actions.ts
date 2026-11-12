@@ -274,3 +274,14 @@ export async function buyAction(resource: string, amount: number): Promise<Actio
     return `Comprou ${n} de ${RESOURCES[r].name} por ${out.cost} moedas.`;
   });
 }
+
+/** Donates everything useful for the current building at once. */
+export async function donateAllAction(): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = await game.donateAll(user.id);
+    return r.completed
+      ? `${r.completed} concluído! O sítio subiu de nível.`
+      : `Doou tudo o que a obra precisava: +${r.points} pontos.`;
+  });
+}

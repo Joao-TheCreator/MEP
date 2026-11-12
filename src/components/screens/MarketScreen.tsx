@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { MARKET, RESOURCES, RESOURCE_KEYS, type ResourceKey } from "@/game/config";
-import { buyCost, maxBuyable, sellValue } from "@/game/market";
+import { buyCost, maxBuyable, sellValue, surplusToSell } from "@/game/market";
+import { PROFESSIONS } from "@/game/config";
 import { buyAction, sellAction } from "@/app/actions";
 import { Sprite } from "@/art/pixel";
 import { COIN } from "@/art/coin";
@@ -26,6 +27,13 @@ export function MarketScreen({ state, act, pending }: ScreenProps) {
   const [mode, setMode] = useState<"buy" | "sell">("buy");
   const left = Math.max(0, market.limit - market.used);
   const own = RESOURCE_KEYS.filter((r) => (inventory[r] ?? 0) > 0);
+  // what is spare of the player's own raw resource: all of it minus what the
+  // building still needs and what the next workshop upgrade costs
+  const raw = PROFESSIONS[me.profession].produces;
+  const b = state.farm.building;
+  const keepBuilding = b ? Math.max(0, (b.cost[raw] ?? 0) - (state.farm.progress[raw] ?? 0)) : 0;
+  const keepWorkshop = me.upgradeCost?.[raw] ?? 0;
+  const spare = surplusToSell(inventory[raw] ?? 0, [keepBuilding, keepWorkshop]);
 
   return (
     <>
@@ -49,7 +57,18 @@ export function MarketScreen({ state, act, pending }: ScreenProps) {
             <p className="small muted">Limite de hoje: {fmt(market.used)} de {fmt(market.limit)} pontos usados. Cresce com o seu nível.</p>
             {RESOURCE_KEYS.map((r) => <BuyRow key={r} r={r} coins={me.coins} left={left} have={inventory[r] ?? 0} act={act} pending={pending} />)}
           </>
-        ) : own.length === 0 ? (
+        ) : null}
+        {mode === "sell" && spare > 0 && sellValue(raw, spare) > 0 && (
+          <div className="stack surplus">
+            <button className="btn big" disabled={pending} onClick={() => act(() => sellAction(raw, spare))}>
+              Vender o excedente: {fmt(spare)} de {RESOURCES[raw].name} por {fmt(sellValue(raw, spare))} moedas
+            </button>
+            <p className="small muted">
+              Guarda {fmt(keepBuilding)} para a obra e {fmt(keepWorkshop)} para melhorar a oficina.
+            </p>
+          </div>
+        )}
+        {mode === "buy" ? null : own.length === 0 ? (
           <p className="muted">Nada para vender. Colete sua produção na Oficina.</p>
         ) : (
           own.map((r) => <SellRow key={r} r={r} have={inventory[r] ?? 0} act={act} pending={pending} />)

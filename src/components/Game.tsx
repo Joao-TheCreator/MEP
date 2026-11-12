@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import type { ResourceKey } from "@/game/config";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { LEVEL, PROFESSIONS, RESOURCES, SLOTS, type ResourceKey } from "@/game/config";
+import { computeProduction, hasEnough, ratePerHour, storageHours } from "@/game/rules";
+import { farmHour } from "@/art/daylight";
+import { COIN } from "@/art/coin";
+import { nextStep, rewardPops, type Hint, type Pop, type Snapshot } from "./guide";
 import type { GameState } from "@/server/game";
 import { Sprite } from "@/art/pixel";
 import { LOGO, RESOURCE_SPRITES } from "@/art/sprites";
@@ -52,6 +56,9 @@ export function Game({ state }: { state: GameState }) {
       setToast(await fn());
     });
 
+  const hint = hintFor(state, now);
+  const pops = useRewardPops(state);
+
   const ctx: ScreenProps = { state, now, act, pending, openNight: () => setTab("night") };
 
   return (
@@ -64,6 +71,10 @@ export function Game({ state }: { state: GameState }) {
           <span className="lvl">Nível {state.farm.level}</span>
           <Avatar avatar={state.me.avatar} scale={2} />
         </header>
+        <button type="button" className={`hint ${hint.urgent ? "urgent" : ""}`} onClick={() => setTab(hint.tab)}>
+          <span className="hint-arrow" aria-hidden>▸</span>
+          <span className="grow">{hint.text}</span>
+        </button>
         {tab === "farm" && <FarmScreen {...ctx} />}
         {tab === "work" && <WorkScreen {...ctx} />}
         {tab === "hero" && <HeroScreen {...ctx} />}
@@ -79,6 +90,15 @@ export function Game({ state }: { state: GameState }) {
         )}
         {tab === "rank" && <RankingScreen {...ctx} />}
       </main>
+      <div className="pops" aria-live="polite">
+        {pops.map((p) => (
+          <span key={p.id} className={`pop ${p.big ? "big" : ""}`}>
+            {p.coin && <Sprite sprite={COIN} scale={2} />}
+            {p.resource && <Sprite sprite={RESOURCE_SPRITES[p.resource as ResourceKey]} scale={2} />}
+            {p.text}
+          </span>
+        ))}
+      </div>
       <WipeNotice state={state} onSee={() => setTab("night")} />
       {toast && <div className={`toast ${toast.ok ? "" : "error"}`} role="status">{toast.message}</div>}
       <nav className="tabs" role="tablist">
@@ -131,4 +151,70 @@ function WipeNotice({ state, onSee }: { state: GameState; onSee: () => void }) {
       </div>
     </div>
   );
+}
+
+/** The most useful thing to do now (roadmap 1c), from the game state. */
+function hintFor(state: GameState, now: Date): Hint {
+  const { me, farm, inventory, night } = state;
+  const prof = PROFESSIONS[me.profession];
+  const prod = computeProduction({
+    profession: me.profession,
+    workshopLevel: me.workshopLevel,
+    farmLevel: farm.level,
+    lastCollectedAt: new Date(me.lastCollectedAt),
+    now,
+  });
+  const c = me.character;
+  const ready = c.gear.find((g) => {
+    const cost = g.upgradeCost ?? g.refineCost;
+    return cost !== null && hasEnough(inventory, cost);
+  });
+  const b = farm.building;
+  const canDonate = !!b && (Object.entries(b.cost) as [ResourceKey, number][]).some(
+    ([r, need]) => need - (farm.progress[r] ?? 0) > 0 && (inventory[r] ?? 0) > 0,
+  );
+  return nextStep({
+    pending: prod.units,
+    capacity: Math.floor(ratePerHour(me.profession, me.workshopLevel, farm.level) * storageHours(farm.level)),
+    resourceName: RESOURCES[prof.produces].name,
+    hour: farmHour(now),
+    patrolled: me.patrolledTonight,
+    hordeBeatsDefense: night.horde > night.defense,
+    nightsFireLasts: night.lasts,
+    freeAttributePoints: c.freePoints,
+    talentToPick: LEVEL.talentLevels.some((lv, i) => c.level >= lv && (c.talents[i] === null || c.talents[i] === undefined)),
+    gearReady: ready ? SLOTS[ready.slot].label : null,
+    canUpgradeWorkshop: !!me.upgradeCost && hasEnough(inventory, me.upgradeCost),
+    workshopName: prof.workshop.name,
+    canDonateTo: canDonate ? b!.name : null,
+  });
+}
+
+const RESOURCE_NAMES = Object.fromEntries(Object.entries(RESOURCES).map(([k, v]) => [k, v.name]));
+
+/** Floating "+N" chips for what the player just gained (compares the state before and after). */
+function useRewardPops(state: GameState) {
+  const [pops, setPops] = useState<(Pop & { id: number })[]>([]);
+  const prev = useRef<Snapshot | null>(null);
+  const nextId = useRef(1);
+  useEffect(() => {
+    const snap: Snapshot = {
+      season: state.night.season,
+      coins: state.me.coins,
+      level: state.me.character.level,
+      xpIntoLevel: state.me.character.xpIntoLevel,
+      farmLevel: state.farm.level,
+      inventory: state.inventory as Record<string, number>,
+    };
+    const before = prev.current;
+    prev.current = snap;
+    if (!before) return;
+    const fresh = rewardPops(before, snap, RESOURCE_NAMES).map((p) => ({ ...p, id: nextId.current++ }));
+    if (fresh.length === 0) return;
+    setPops((list) => [...list, ...fresh]);
+    const ids = new Set(fresh.map((p) => p.id));
+    // no cleanup on purpose: a newer state must not cancel the removal of older pops
+    setTimeout(() => setPops((list) => list.filter((p) => !ids.has(p.id))), 2600);
+  }, [state]);
+  return pops;
 }

@@ -308,3 +308,30 @@ body:has(.night) { background: #141a2e; }
 .market-row { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-bottom: 2px dashed var(--paper-dark); }
 .stock-seg { margin-bottom: 8px; }
 .topbar h1 { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Gameplay feel (roadmap 1c): next-step hint and reward pops ---- */
+.hint { display: flex; align-items: center; gap: 6px; width: 100%; margin: 0 0 8px; padding: 6px 10px 7px; text-align: left;
+  font: inherit; font-size: 18px; line-height: 1.1; color: var(--paper); background: rgba(59,38,48,.85); border: 0;
+  box-shadow: 0 0 0 2px var(--wine-dark); cursor: pointer; }
+.hint.urgent { background: var(--flame); box-shadow: 0 0 0 2px var(--wine); color: #fff; }
+.hint-arrow { color: var(--gold); }
+.hint.urgent .hint-arrow { color: #fff; }
+.shell.full .hint { margin-bottom: 0; }
+.pops { position: fixed; left: 50%; top: 150px; transform: translateX(-50%); z-index: 30; display: flex; flex-direction: column;
+  align-items: center; gap: 4px; pointer-events: none; }
+.pop { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 4px; color: #fff; background: rgba(59,38,48,.9);
+  box-shadow: 0 0 0 2px var(--gold); font-family: var(--font-display); font-size: 16px; white-space: nowrap;
+  animation: pop-rise 2.5s ease-out forwards; }
+.pop.big { font-size: 24px; padding: 6px 14px 8px; background: var(--flame); box-shadow: 0 0 0 3px var(--gold); }
+@keyframes pop-rise {
+  0% { opacity: 0; transform: translateY(14px) scale(.9); }
+  12% { opacity: 1; transform: translateY(0) scale(1.06); }
+  20% { transform: translateY(0) scale(1); }
+  75% { opacity: 1; transform: translateY(-10px); }
+  100% { opacity: 0; transform: translateY(-26px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pop { animation: pop-fade 2.5s linear forwards; }
+  @keyframes pop-fade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+}
+.surplus { padding-bottom: 8px; border-bottom: 2px dashed var(--paper-dark); }
