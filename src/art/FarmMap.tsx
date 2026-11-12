@@ -4,6 +4,7 @@ import { SpriteRects, spriteSize, type SpriteDef } from "./pixel";
 import {
   BARN, CONSTRUCTION, HOUSE, MILL, PALM, POOL, TREE, TREE_DARK, WELL, templeSprite,
 } from "./sprites";
+import { CROPS, FORGE, PEN, SAWMILL } from "./workplaces";
 
 /**
  * Pixel map of the farm, laid out after the satellite view of the Chácara
@@ -27,7 +28,16 @@ const PLACES = {
   well: { x: 46, y: 40 },
   barn: { x: 38, y: 62 },
   mill: { x: 100, y: 26 },
+  // work places of the four professions (roadmap 1b)
+  cropsA: { x: 22, y: 3 },
+  cropsB: { x: 4, y: 19 },
+  pen: { x: 4, y: 40 },
+  sawmill: { x: 134, y: 60 },
+  forge: { x: 132, y: 96 },
 };
+
+/** Where the campfire burns (its feet), south of the temple. */
+export const FIRE_SPOT = { x: 84, y: 100 };
 
 function box(p: { x: number; y: number }, s: SpriteDef, pad = 2): Rect {
   const { w, h } = spriteSize(s);
@@ -46,9 +56,17 @@ const CLEARINGS: Rect[] = [
   box(PLACES.well, WELL, 2),
   box(PLACES.barn, BARN, 2),
   box(PLACES.mill, MILL, 2),
+  box(PLACES.pen, PEN, 2),
+  box(PLACES.sawmill, SAWMILL, 2),
+  box(PLACES.forge, FORGE, 2),
+  { x: FIRE_SPOT.x - 13, y: FIRE_SPOT.y - 10, w: 26, h: 20 }, // camp around the fire
   // paths
   { x: 56, y: 44, w: 10, h: 40 },
   { x: 26, y: 78, w: 34, h: 8 },
+  { x: 26, y: 51, w: 30, h: 6 }, // well → pen
+  { x: 124, y: 84, w: 12, h: 24 }, // temple → east yard → forge
+  { x: 134, y: 70, w: 10, h: 16 }, // east yard → sawmill
+  { x: 82, y: 84, w: 8, h: 8 }, // temple door → camp
 ];
 
 const inside = (x: number, y: number, r: Rect) => x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
@@ -70,6 +88,15 @@ function ground(): SpriteDef {
   // dirt paths: temple → houses, field → pool
   for (let y = 46; y < 84; y++) for (let x = 58; x < 62; x++) g.set(x + ((y >> 3) % 2), y, rand() < 0.15 ? "D" : "d");
   for (let x = 24; x < 62; x++) for (let y = 80; y < 83; y++) g.set(x, y + ((x >> 4) % 2), rand() < 0.15 ? "D" : "d");
+  // dirt paths to the work places and the camp (roadmap 1b)
+  for (let x = 28; x < 56; x++) for (let y = 53; y < 55; y++) g.set(x, y, rand() < 0.15 ? "D" : "d");
+  for (let x = 124; x < 131; x++) for (let y = 86; y < 88; y++) g.set(x, y, rand() < 0.15 ? "D" : "d");
+  for (let y = 86; y < 108; y++) for (let x = 128; x < 130; x++) g.set(x, y, rand() < 0.15 ? "D" : "d");
+  for (let y = 72; y < 88; y++) for (let x = 138; x < 140; x++) g.set(x, y, rand() < 0.15 ? "D" : "d");
+  for (let y = 0; y < 16; y++) for (let x = -11; x < 12; x++) {
+    // trodden earth around the campfire
+    if ((x * x) / 121 + ((y - 8) * (y - 8)) / 64 < 1 && rand() > 0.25) g.set(FIRE_SPOT.x + x, FIRE_SPOT.y - 8 + y, rand() < 0.2 ? "D" : "d");
+  }
   // stone patio around temple + pool
   for (let y = 44; y < 52; y++) for (let x = 62; x < 100; x++) if (rand() > 0.08) g.set(x, y, rand() < 0.2 ? "S" : "s");
   return {
@@ -111,10 +138,15 @@ export interface FarmMapProps {
   className?: string;
 }
 
-export type PlaceKey = "temple" | "pool" | "house" | "annex" | "well" | "barn" | "mill";
+export type WorkPlaceKey = "crops" | "pen" | "sawmill" | "forge";
+export type PlaceKey = "temple" | "pool" | "house" | "annex" | "well" | "barn" | "mill" | WorkPlaceKey;
 
 /** Fixed landmarks of the farm (the community buildings come from game config). */
-export const LANDMARKS: Record<"temple" | "pool" | "house" | "annex", { name: string; description: string }> = {
+export const LANDMARKS: Record<"temple" | "pool" | "house" | "annex" | WorkPlaceKey, { name: string; description: string }> = {
+  crops: { name: "Lavoura", description: "Onde os Agricultores plantam e colhem os Grãos." },
+  pen: { name: "Curral", description: "Onde os Pecuaristas cuidam do gado e tiram o Leite." },
+  sawmill: { name: "Serraria", description: "Onde os Carpinteiros cortam a Madeira e fazem Tábuas." },
+  forge: { name: "Forja", description: "Onde os Ferreiros derretem o Minério e batem as Ferramentas." },
   temple: { name: "Templo Dae Han", description: "O coração do sítio: tijolo aparente, arcos brancos e telhado cinza." },
   pool: { name: "Piscina", description: "Cercadinha, no meio do pátio. Lugar de reunião nos dias de calor." },
   house: { name: "Casinha", description: "Casa de telhado laranja onde o pessoal descansa." },
@@ -127,6 +159,8 @@ export interface PlacedSprite {
   y: number;
   /** Set when the sprite is a building the player can tap. */
   place?: PlaceKey;
+  /** Lies on the ground (crops): people always walk over it. */
+  flat?: boolean;
 }
 
 /** Everything standing on the ground, sorted back-to-front (painter's order). */
@@ -147,16 +181,21 @@ export function farmItems(completed: string[], building?: string | null): Placed
     { s: HOUSE, ...PLACES.houseA, place: "house" as const },
     { s: HOUSE, ...PLACES.houseB, place: "house" as const },
     { s: ANNEX, ...PLACES.annex, place: "annex" as const },
+    { s: CROPS, ...PLACES.cropsA, place: "crops" as const, flat: true },
+    { s: CROPS, ...PLACES.cropsB, place: "crops" as const, flat: true },
+    { s: PEN, ...PLACES.pen, place: "pen" as const },
+    { s: SAWMILL, ...PLACES.sawmill, place: "sawmill" as const },
+    { s: FORGE, ...PLACES.forge, place: "forge" as const },
     slot("well", WELL),
     slot("barn", BARN),
     slot("mill", MILL),
   ].filter(Boolean) as PlacedSprite[];
-  return items.sort((a, b) => a.y + spriteSize(a.s).h - (b.y + spriteSize(b.s).h));
+  return items.sort((a, b) => footY(a) - footY(b));
 }
 
 /** Bottom edge (the "feet") of a placed sprite, used for depth sorting. */
 export function footY(it: PlacedSprite) {
-  return it.y + spriteSize(it.s).h;
+  return it.flat ? it.y : it.y + spriteSize(it.s).h;
 }
 
 /** Static map (no people). The live version with residents is FarmScene. */

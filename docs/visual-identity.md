@@ -100,3 +100,20 @@ muda nada do jogo.
 
 - Commitar o arquivo original da logo em `public/brand/logo.png` (o jogo usa a
   versão pixelada `LOGO` em `src/art/sprites.ts`).
+
+## Sítio vivo (roadmap 1b)
+
+O mapa mostra o que está acontecendo no jogo:
+
+- **Locais de trabalho** das quatro profissões, em `src/art/workplaces.ts`: Lavoura (duas
+  hortas no campo), Curral (cercado com a vaca, a oeste), Serraria (toras e cavalete, a
+  leste) e Forja (forno de pedra e bigorna, a sudeste). Todos são tocáveis, como as obras.
+- **Cada um no seu canto:** de dia os moradores andam perto do local da própria profissão
+  (`spot` em `FarmScene`); ainda passeiam, mas voltam. À noite, quem já fez a ronda senta
+  em roda **atrás e ao lado** da fogueira, nunca na frente, para a chama aparecer.
+- **Fogueira** ao sul do templo (`FIRE_SPOT`). A chama fica menor quando a vida está
+  abaixo de 35%; tocar nela abre a aba Noite.
+- **Dia e noite** (`src/art/daylight.ts`, horário de Brasília): o mapa escurece das 17h às
+  20h (hora da horda), fica escuro até as 5h e clareia até as 7h. O brilho da fogueira
+  cresce com a escuridão e com a vida dela.
+- A página `/art` mostra a cena de dia e às 21h com a fogueira fraca.

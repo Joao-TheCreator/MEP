@@ -550,7 +550,15 @@ export interface GameState {
     professionCounts: Record<ProfessionKey, number>;
     missingProfessions: ProfessionKey[];
   };
-  members: { id: string; name: string; avatar: string; profession: ProfessionKey; workshopLevel: number }[];
+  members: {
+    id: string;
+    name: string;
+    avatar: string;
+    profession: ProfessionKey;
+    workshopLevel: number;
+    /** Already played tonight's patrol (they gather at the campfire at night). */
+    patrolled: boolean;
+  }[];
   ranking: { week: RankingRow[]; lastWeek: RankingRow[]; allTime: RankingRow[] };
 }
 
@@ -686,6 +694,7 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       avatar: m.avatar,
       profession: m.profession,
       workshopLevel: m.workshop_level,
+      patrolled: m.patrol_night === tonight,
     })),
     ranking: { week, lastWeek, allTime },
   };

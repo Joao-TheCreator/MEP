@@ -4,6 +4,9 @@ import { useState } from "react";
 import { BUILDINGS, PROFESSIONS, type ResourceKey } from "@/game/config";
 import { FarmScene } from "@/art/FarmScene";
 import { LANDMARKS, type PlaceKey } from "@/art/FarmMap";
+import { farmHour, isNight } from "@/art/daylight";
+import type { Spot } from "@/art/FarmScene";
+import type { ProfessionKey } from "@/game/config";
 import { donateAction } from "@/app/actions";
 import { Res } from "../Res";
 import type { ScreenProps } from "./types";
@@ -12,13 +15,20 @@ import type { ScreenProps } from "./types";
  * The farm tab: the live map fills the screen; the current construction (or
  * the building the player tapped) lives in a drawer at the bottom.
  */
-export function FarmScreen({ state, act, pending }: ScreenProps) {
+/** Work place of each profession on the map. */
+const WORK_SPOT: Record<ProfessionKey, Spot> = { farmer: "crops", rancher: "pen", carpenter: "sawmill", blacksmith: "forge" };
+
+export function FarmScreen({ state, now, act, pending, openNight }: ScreenProps) {
   const { farm, inventory, members, me } = state;
   const b = farm.building;
   const [picked, setPicked] = useState<PlaceKey | null>(null);
   const [open, setOpen] = useState(false);
 
+  // by day everyone is near their work place; at night, those who patrolled sit by the fire
+  const hour = farmHour(now);
+  const night = isNight(hour);
   const residents = members.map((m) => ({
+    spot: night && m.patrolled ? ("camp" as const) : WORK_SPOT[m.profession],
     id: m.id,
     name: m.id === me.id ? `${m.name} (você)` : m.name,
     avatar: m.avatar,
@@ -48,6 +58,9 @@ export function FarmScreen({ state, act, pending }: ScreenProps) {
         selectedPlace={picked}
         onSelectPlace={pick}
         placeLabels={placeLabels}
+        hour={hour}
+        fire={state.night.fireHp / state.night.fireMax}
+        onFire={openNight}
       />
       <div className="stage-top">
         <span className={`chip fire-chip ${state.night.defense < state.night.horde ? "danger" : ""}`}>
