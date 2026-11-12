@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { BUILDINGS, PROFESSIONS, RECIPES, RESOURCES, type ResourceKey } from "./config";
+import { BUILDINGS, PROFESSION_CHANGE, PROFESSIONS, RECIPES, RESOURCES, type ResourceKey } from "./config";
 import {
   bagPoints,
   computeProduction,
+  countProfessions,
   currentBuilding,
   isBuildingComplete,
   maxCraftable,
+  missingProfessions,
+  professionChangeAvailableAt,
+  professionChangeCost,
   ratePerHour,
   remainingForBuilding,
   storageHours,
@@ -129,5 +133,32 @@ describe("buildings", () => {
   it("only uses known resources", () => {
     const keys = Object.keys(RESOURCES);
     for (const b of BUILDINGS) for (const k of Object.keys(b.cost)) expect(keys).toContain(k as ResourceKey);
+  });
+});
+
+describe("professions on the farm (design §2.1)", () => {
+  it("counts every profession, including missing ones", () => {
+    const counts = countProfessions(["farmer", "farmer", "carpenter"]);
+    expect(counts).toEqual({ farmer: 2, rancher: 0, carpenter: 1, blacksmith: 0 });
+    expect(missingProfessions(counts)).toEqual(["rancher", "blacksmith"]);
+    expect(missingProfessions(countProfessions(["farmer", "rancher", "carpenter", "blacksmith"]))).toEqual([]);
+  });
+
+  it("changing costs 4 h of the current profession's base production (240 points)", () => {
+    expect(PROFESSION_CHANGE.costHours).toBe(4);
+    expect(professionChangeCost("farmer")).toEqual({ grain: 240 });
+    expect(professionChangeCost("rancher")).toEqual({ milk: 120 });
+    expect(professionChangeCost("carpenter")).toEqual({ wood: 240 });
+    expect(professionChangeCost("blacksmith")).toEqual({ ore: 120 });
+    for (const k of Object.keys(PROFESSIONS) as (keyof typeof PROFESSIONS)[]) {
+      expect(bagPoints(professionChangeCost(k))).toBe(240);
+    }
+  });
+
+  it("allows one change per 24 h", () => {
+    expect(PROFESSION_CHANGE.cooldownHours).toBe(24);
+    expect(professionChangeAvailableAt(null, t0)).toBeNull();
+    expect(professionChangeAvailableAt(at(-23 * H), t0)).toEqual(at(H));
+    expect(professionChangeAvailableAt(at(-24 * H), t0)).toBeNull();
   });
 });

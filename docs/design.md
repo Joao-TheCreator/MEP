@@ -35,10 +35,35 @@ outro no mesmo commit (há um teste que confere as tabelas principais).
 | Cozinheiro (`cook`)        | —                | Refeição (Grãos + Leite + Queijo)| ❌ (pós-MVP, liberado pelo Moinho) |
 | Comerciante (`merchant`)   | Moedas           | Trocas entre recursos            | ❌ (pós-MVP) |
 
-- A profissão é escolhida ao entrar no sítio e **não muda** no MVP.
+- A profissão é escolhida ao entrar no sítio e pode ser trocada depois (§2.1).
 - Ao entrar, cada pessoa também escolhe o seu **boneco pixelado** (feitos a partir
   das fotos do grupo; um por pessoa em cada sítio). Ver `docs/visual-identity.md`.
 - Várias pessoas podem ter a mesma profissão.
+
+### 2.1 Profissões em falta e troca de profissão
+
+**Problema:** a Ferramenta só sai do Ferreiro e é exigida pelo Arado, pela Serraria
+e pelo Moinho. Sem nenhum Ferreiro, o sítio empaca. O mesmo vale, em menor grau,
+para qualquer profissão sem ninguém.
+
+**Profissões em falta:** o servidor conta quantos moradores têm cada profissão
+(`GameState.farm.professionCounts`) e lista as que ninguém tem
+(`farm.missingProfessions`). A tela de entrar num sítio pode consultar a mesma
+contagem pelo código de convite (`professionCountsAction`) e destacar a que falta.
+
+**Troca de profissão** (meio-termo do brainstorm: um queria livre, o outro com custo):
+
+| Regra | Valor |
+| --- | --- |
+| Custo | **4 h** da produção base da profissão **atual**, no recurso bruto dela: 240 Grãos, 120 Leite, 240 Madeira ou 120 Minério (= 240 pontos para todos) |
+| Espera entre trocas | **24 h** |
+| Produção pendente | É liquidada na profissão antiga antes da troca |
+| Nível da oficina | Cada profissão guarda o seu. Voltar para uma antiga recupera o nível dela; uma nova começa no 1 |
+| Estoque | Fica todo com o jogador |
+
+O custo é pago no recurso da própria profissão, então dá para trocar sem depender de
+ninguém (importante justamente quando falta uma profissão). Os números ficam em
+`PROFESSION_CHANGE` (`src/game/config.ts`).
 
 ---
 
