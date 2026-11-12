@@ -11,8 +11,8 @@ export function sellValue(resource: ResourceKey, qty: number): number {
 }
 
 /** Coins paid for buying `qty` of a resource (rounded up on the total). */
-export function buyCost(resource: ResourceKey, qty: number): number {
-  return Math.ceil((RESOURCES[resource].points * qty * MARKET.buyPct) / 100);
+export function buyCost(resource: ResourceKey, qty: number, buyPct: number = MARKET.buyPct): number {
+  return Math.ceil((RESOURCES[resource].points * qty * buyPct) / 100);
 }
 
 /** Points of value a purchase uses from the daily limit. */
@@ -26,11 +26,11 @@ export function dailyBuyLimit(level: number): number {
 }
 
 /** Most units of `resource` the player can buy now, given coins and what is left of today's limit. */
-export function maxBuyable(resource: ResourceKey, coins: number, limitLeft: number): number {
+export function maxBuyable(resource: ResourceKey, coins: number, limitLeft: number, buyPct: number = MARKET.buyPct): number {
   const p = RESOURCES[resource].points;
   const byLimit = Math.floor(Math.max(0, limitLeft) / p);
-  let byCoins = Math.floor((Math.max(0, coins) * 100) / (p * MARKET.buyPct));
-  while (byCoins > 0 && buyCost(resource, byCoins) > coins) byCoins--;
+  let byCoins = Math.floor((Math.max(0, coins) * 100) / (p * buyPct));
+  while (byCoins > 0 && buyCost(resource, byCoins, buyPct) > coins) byCoins--;
   return Math.min(byLimit, byCoins);
 }
 
@@ -40,8 +40,8 @@ export function bagSellValue(bag: Bag): number {
 }
 
 /** Coins for buying a whole bag. */
-export function bagBuyCost(bag: Bag): number {
-  return (Object.entries(bag) as [ResourceKey, number][]).reduce((s, [r, q]) => s + buyCost(r, q), 0);
+export function bagBuyCost(bag: Bag, buyPct: number = MARKET.buyPct): number {
+  return (Object.entries(bag) as [ResourceKey, number][]).reduce((s, [r, q]) => s + buyCost(r, q, buyPct), 0);
 }
 
 /** The game day (YYYY-MM-DD) in Brasília (UTC−3), for daily limits. */

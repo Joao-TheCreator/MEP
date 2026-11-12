@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BONUS_CAPS, LEVEL, MAX_ATTRIBUTE_POINTS, PROFESSION_KEYS, REFINE, TALENTS, TIER_KEYS, TIERS } from "./config";
+import { BONUS_CAPS, LEVEL, MAX_ATTRIBUTE_POINTS, PROFESSION_KEYS, REFINE, RESOURCES, SLOT_KEYS, TALENTS, TIER_KEYS, TIERS } from "./config";
 import {
   attributePointsEarned,
   bagPagesOpen,
@@ -111,6 +111,28 @@ describe("items, refine and slots (design §12)", () => {
     expect(refineCost(9)).toEqual({ iron_bar: 89, tool: 23 });
     expect(refineCost(20)).toEqual({ iron_bar: 1151, tool: 288 });
     expect(refineCost(REFINE.maxLevel)).toBeNull();
+  });
+
+  it("each slot is made of different materials, worth about the same (design §12.2)", () => {
+    expect(gearUpgradeCost("wood", "weapon")).toEqual({ plank: 10, iron_bar: 4, tool: 1 });
+    expect(gearUpgradeCost("wood")).toEqual(gearUpgradeCost("wood", "tool"));
+    expect(gearUpgradeCost("wood", "body")).toEqual({ cheese: 7, plank: 10 });
+    expect(gearUpgradeCost("wood", "hat")).toEqual({ feed: 11, plank: 11 });
+    expect(gearUpgradeCost("wood", "pin")).toEqual({ iron_bar: 4, cheese: 4, feed: 5 });
+    const points = (b: Record<string, number>) => Object.entries(b).reduce((s, [k, v]) => s + v * RESOURCES[k as keyof typeof RESOURCES].points, 0);
+    for (const slot of SLOT_KEYS) {
+      expect(points(gearUpgradeCost("wood", slot)!)).toBeGreaterThanOrEqual(109);
+      expect(points(gearUpgradeCost("wood", slot)!)).toBeLessThanOrEqual(110);
+      expect(points(refineCost(0, slot)!)).toBeLessThanOrEqual(50);
+    }
+    // every profession's crafted good is used by some slot
+    const used = new Set(SLOT_KEYS.flatMap((slot) => Object.keys(gearUpgradeCost("wood", slot)!)));
+    expect([...used].sort()).toEqual(["cheese", "feed", "iron_bar", "plank", "tool"]);
+  });
+
+  it("the Forja comunitária makes refining 15% cheaper", () => {
+    expect(refineCost(9, "weapon", 15)).toEqual({ iron_bar: 76, tool: 19 });
+    expect(refineCost(0, "weapon", 15)).toEqual({ iron_bar: 2, tool: 1 });
   });
 
   it("backpack page III opens at level 15", () => {

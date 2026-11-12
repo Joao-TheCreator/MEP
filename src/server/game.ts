@@ -4,6 +4,7 @@ import {
   ATTRIBUTE_KEYS,
   ENERGY,
   FARM,
+  MARKET,
   PATROL,
   NIGHT_WEAPONS,
   PROFESSIONS,
@@ -37,6 +38,7 @@ import {
   recipeInputs,
   bagPoints,
   buildingCostScale,
+  farmEffects,
   remainingForBuilding,
   workshopUpgradeCost,
 } from "@/game/rules";
@@ -463,8 +465,8 @@ export async function sellToMarket(userId: string, resource: ResourceKey, qty: n
 
 /** Buys resources from the shop: much dearer than trading, with a daily limit. */
 export async function buyFromMarket(userId: string, resource: ResourceKey, qty: number) {
-  return withFarmTx(userId, async (tx, player, _farm, now) => {
-    const cost = buyCost(resource, qty);
+  return withFarmTx(userId, async (tx, player, farm, now) => {
+    const cost = buyCost(resource, qty, farmEffects(farm.level).marketBuyPct ?? MARKET.buyPct);
     const points = buyPoints(resource, qty);
     const limit = dailyBuyLimit(characterOf(player).level);
     const left = limit - (await boughtToday(tx, player.id, now));
@@ -558,7 +560,7 @@ export async function upgradeGear(userId: string, slot: SlotKey) {
   return withFarmTx(userId, async (tx, player, farm, now) => {
     const gear = { ...player.gear };
     const cur = gear[slot] ?? { tier: "wood" as const, refine: 0 };
-    const cost = gearUpgradeCost(cur.tier);
+    const cost = gearUpgradeCost(cur.tier, slot);
     const next = nextTier(cur.tier);
     if (!cost || !next) throw new GameError("Esse item já está no tier máximo.");
     await removeItems(tx, player.id, cost);
@@ -574,7 +576,7 @@ export async function refineGear(userId: string, slot: SlotKey) {
   return withFarmTx(userId, async (tx, player, farm, now) => {
     const gear = { ...player.gear };
     const cur = gear[slot] ?? { tier: "wood" as const, refine: 0 };
-    const cost = refineCost(cur.refine);
+    const cost = refineCost(cur.refine, slot, farmEffects(farm.level).refineDiscountPct);
     if (!cost) throw new GameError("Esse item já está no refino máximo.");
     await removeItems(tx, player.id, cost);
     gear[slot] = { tier: cur.tier, refine: cur.refine + 1 };
@@ -688,7 +690,7 @@ export interface GameState {
     patrolledTonight: boolean;
   };
   /** Vendinha: today's purchase limit (points of value) and how much is used. */
-  market: { limit: number; used: number };
+  market: { limit: number; used: number; /** % of the point value the shop charges (lower with the Vendinha). */ buyPct: number };
   /** Today's tasks (design §17). */
   tasks: {
     items: { kind: TaskKind; text: string; target: number; progress: number; done: boolean; claimed: boolean; coins: number; xp: number }[];
@@ -797,6 +799,7 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
   const defense = defenseOf(team, farm.level);
   const me = characterOf(player);
   const loadout = loadoutOf(player);
+  const effects = farmEffects(farm.level);
   const daily = await dailyRow(sql, player, farm.level, now);
   const todayTasks = tasksOf(player, daily, now);
   const professionCounts = countProfessions(members.map((m) => m.profession));
@@ -835,8 +838,8 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
             tier: it.tier,
             refine: it.refine,
             value: Math.round(SLOTS[slot].perPower * (TIERS[it.tier].power + it.refine * SLOTS[slot].refineStep) * 100) / 100,
-            upgradeCost: gearUpgradeCost(it.tier),
-            refineCost: refineCost(it.refine),
+            upgradeCost: gearUpgradeCost(it.tier, slot),
+            refineCost: refineCost(it.refine, slot, effects.refineDiscountPct),
           };
         }),
         power: {
@@ -846,7 +849,7 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       },
       patrolledTonight: player.patrol_night === tonight,
     },
-    market: { limit: dailyBuyLimit(me.level), used: await boughtToday(sql, player.id, now) },
+    market: { limit: dailyBuyLimit(me.level), used: await boughtToday(sql, player.id, now), buyPct: effects.marketBuyPct ?? MARKET.buyPct },
     tasks: {
       items: todayTasks.map((t, i) => ({
         kind: t.kind,
@@ -870,7 +873,7 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       fireMax,
       horde: hordeStrength(tonight, active),
       defense,
-      lasts: nightsFireLasts({ fromNight: tonight, activeMembers: active, defense, fireHp, fireMax, damageCutPct: team.damageCutPct }),
+      lasts: nightsFireLasts({ fromNight: tonight, activeMembers: active, defense, fireHp, fireMax, damageCutPct: team.damageCutPct, farmLevel: farm.level }),
       team: {
         counts: team.counts,
         damageCutPct: team.damageCutPct,

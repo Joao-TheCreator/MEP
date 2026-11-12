@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MAX_DARKNESS, darkness, farmHour, isNight } from "./daylight";
 import { spriteSize } from "./pixel";
 import { CROPS, FORGE, MAP_FIRE, MAP_FIRE_LOW, PEN, SAWMILL } from "./workplaces";
+import { FENCE, KITCHEN, SHOP, SMITHY, TOWER } from "./buildings";
 
 describe("daylight on the farm map", () => {
   it("reads the hour in Brasília", () => {
@@ -27,7 +28,7 @@ describe("daylight on the farm map", () => {
 });
 
 describe("work place sprites", () => {
-  const all = { CROPS, PEN, SAWMILL, FORGE, fire0: MAP_FIRE[0], fire1: MAP_FIRE[1], low0: MAP_FIRE_LOW[0], low1: MAP_FIRE_LOW[1] };
+  const all = { CROPS, PEN, SAWMILL, FORGE, SHOP, FENCE, TOWER, KITCHEN, SMITHY, fire0: MAP_FIRE[0], fire1: MAP_FIRE[1], low0: MAP_FIRE_LOW[0], low1: MAP_FIRE_LOW[1] };
   for (const [name, s] of Object.entries(all)) {
     it(`${name}: rows have the same width and every color is defined`, () => {
       const { w } = spriteSize(s);

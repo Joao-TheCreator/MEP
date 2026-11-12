@@ -117,3 +117,10 @@ O mapa mostra o que está acontecendo no jogo:
   20h (hora da horda), fica escuro até as 5h e clareia até as 7h. O brilho da fogueira
   cresce com a escuridão e com a vida dela.
 - A página `/art` mostra a cena de dia e às 21h com a fogueira fraca.
+
+## Obras novas no mapa (design §20)
+
+`src/art/buildings.ts`: Vendinha (barraca de toldo listrado, a oeste), Torre de vigia
+(madeira com lampião, ao norte do pátio), Cozinha (tijolo, telhado laranja e chaminé, a
+leste), Forja comunitária (pedra, com o fogo aceso, ao sul) e Cerca (ao sul da fogueira).
+Aparecem como canteiro de obra enquanto são construídas, como as três primeiras.

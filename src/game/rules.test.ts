@@ -5,6 +5,7 @@ import {
   computeProduction,
   countProfessions,
   currentBuilding,
+  farmEffects,
   isBuildingComplete,
   maxCraftable,
   missingProfessions,
@@ -116,8 +117,8 @@ describe("recipes", () => {
 
 describe("buildings", () => {
   it("first three buildings and their point totals (design §7)", () => {
-    expect(BUILDINGS.map((b) => b.key)).toEqual(["well", "barn", "mill"]);
-    expect(BUILDINGS.map((b) => bagPoints(b.cost))).toEqual([1340, 3520, 6360]);
+    expect(BUILDINGS.slice(0, 3).map((b) => b.key)).toEqual(["well", "barn", "mill"]);
+    expect(BUILDINGS.slice(0, 3).map((b) => bagPoints(b.cost))).toEqual([1340, 3520, 6360]);
   });
 
   it("tracks remaining and completion", () => {
@@ -127,7 +128,24 @@ describe("buildings", () => {
     expect(remainingForBuilding(well, progress)).toEqual({ wood: 0, ore: 0, grain: 0, plank: 1 });
     expect(isBuildingComplete(well, progress)).toBe(false);
     expect(isBuildingComplete(well, { ...progress, plank: 60 })).toBe(true);
-    expect(currentBuilding(4)).toBeNull();
+    expect(currentBuilding(4)!.key).toBe("shop");
+    expect(currentBuilding(BUILDINGS.length + 1)).toBeNull();
+  });
+
+  it("the later buildings come in order, each dearer than the one before (design §20)", () => {
+    expect(BUILDINGS.map((b) => b.key)).toEqual(["well", "barn", "mill", "shop", "fence", "tower", "kitchen", "smithy"]);
+    expect(BUILDINGS.map((b) => b.fromLevel)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    const points = BUILDINGS.map((b) => bagPoints(b.cost));
+    for (let i = 1; i < points.length; i++) expect(points[i]).toBeGreaterThan(points[i - 1]);
+  });
+
+  it("finished buildings add up their effects", () => {
+    expect(farmEffects(4)).toEqual({ marketBuyPct: null, defensePct: 0, fireHpPct: 0, fireRegenPct: 0, refineDiscountPct: 0 });
+    expect(farmEffects(5).marketBuyPct).toBe(170);
+    expect(farmEffects(6).defensePct).toBe(15);
+    expect(farmEffects(7).fireHpPct).toBe(25);
+    expect(farmEffects(8).fireRegenPct).toBe(15);
+    expect(farmEffects(9)).toEqual({ marketBuyPct: 170, defensePct: 15, fireHpPct: 25, fireRegenPct: 15, refineDiscountPct: 15 });
   });
 
   it("only uses known resources", () => {

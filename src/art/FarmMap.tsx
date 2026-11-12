@@ -5,6 +5,7 @@ import {
   BARN, CONSTRUCTION, HOUSE, MILL, PALM, POOL, TREE, TREE_DARK, WELL, templeSprite,
 } from "./sprites";
 import { CROPS, FORGE, PEN, SAWMILL } from "./workplaces";
+import { FENCE, KITCHEN, SHOP, SMITHY, TOWER } from "./buildings";
 
 /**
  * Pixel map of the farm, laid out after the satellite view of the Chácara
@@ -28,6 +29,12 @@ const PLACES = {
   well: { x: 46, y: 40 },
   barn: { x: 38, y: 62 },
   mill: { x: 100, y: 26 },
+  // later community buildings (design §20)
+  shop: { x: 10, y: 62 },
+  fence: { x: 66, y: 110 },
+  tower: { x: 64, y: 8 },
+  kitchen: { x: 140, y: 44 },
+  smithy: { x: 104, y: 96 },
   // work places of the four professions (roadmap 1b)
   cropsA: { x: 22, y: 3 },
   cropsB: { x: 4, y: 19 },
@@ -56,6 +63,11 @@ const CLEARINGS: Rect[] = [
   box(PLACES.well, WELL, 2),
   box(PLACES.barn, BARN, 2),
   box(PLACES.mill, MILL, 2),
+  box(PLACES.shop, SHOP, 2),
+  box(PLACES.fence, FENCE, 1),
+  box(PLACES.tower, TOWER, 2),
+  box(PLACES.kitchen, KITCHEN, 2),
+  box(PLACES.smithy, SMITHY, 2),
   box(PLACES.pen, PEN, 2),
   box(PLACES.sawmill, SAWMILL, 2),
   box(PLACES.forge, FORGE, 2),
@@ -139,7 +151,12 @@ export interface FarmMapProps {
 }
 
 export type WorkPlaceKey = "crops" | "pen" | "sawmill" | "forge";
-export type PlaceKey = "temple" | "pool" | "house" | "annex" | "well" | "barn" | "mill" | WorkPlaceKey;
+/** Community buildings that appear on the map when built (keys of BUILDINGS in game config). */
+export type BuildingPlaceKey = "well" | "barn" | "mill" | "shop" | "fence" | "tower" | "kitchen" | "smithy";
+const BUILDING_SPRITES: Record<BuildingPlaceKey, SpriteDef> = {
+  well: WELL, barn: BARN, mill: MILL, shop: SHOP, fence: FENCE, tower: TOWER, kitchen: KITCHEN, smithy: SMITHY,
+};
+export type PlaceKey = "temple" | "pool" | "house" | "annex" | BuildingPlaceKey | WorkPlaceKey;
 
 /** Fixed landmarks of the farm (the community buildings come from game config). */
 export const LANDMARKS: Record<"temple" | "pool" | "house" | "annex" | WorkPlaceKey, { name: string; description: string }> = {
@@ -165,7 +182,8 @@ export interface PlacedSprite {
 
 /** Everything standing on the ground, sorted back-to-front (painter's order). */
 export function farmItems(completed: string[], building?: string | null): PlacedSprite[] {
-  const slot = (key: "well" | "barn" | "mill", sprite: SpriteDef): PlacedSprite | null => {
+  const slot = (key: BuildingPlaceKey): PlacedSprite | null => {
+    const sprite = BUILDING_SPRITES[key];
     const p = PLACES[key];
     if (completed.includes(key)) return { s: sprite, ...p, place: key };
     if (building === key) {
@@ -186,9 +204,7 @@ export function farmItems(completed: string[], building?: string | null): Placed
     { s: PEN, ...PLACES.pen, place: "pen" as const },
     { s: SAWMILL, ...PLACES.sawmill, place: "sawmill" as const },
     { s: FORGE, ...PLACES.forge, place: "forge" as const },
-    slot("well", WELL),
-    slot("barn", BARN),
-    slot("mill", MILL),
+    ...(Object.keys(BUILDING_SPRITES) as BuildingPlaceKey[]).map(slot),
   ].filter(Boolean) as PlacedSprite[];
   return items.sort((a, b) => footY(a) - footY(b));
 }

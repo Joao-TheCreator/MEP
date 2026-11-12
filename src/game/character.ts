@@ -139,13 +139,17 @@ export function nextTier(tier: TierKey): TierKey | null {
   return TIER_KEYS[tierIndex(tier) + 1] ?? null;
 }
 
-/** Cost to upgrade an item from `tier` to the next one (null at the top or when locked). */
-export function gearUpgradeCost(tier: TierKey): Bag | null {
+/**
+ * Cost to upgrade an item from `tier` to the next one (null at the top or when
+ * locked). Each slot is made of different materials (design §12.2); without a
+ * slot it is the weapon's cost.
+ */
+export function gearUpgradeCost(tier: TierKey, slot: SlotKey = "weapon"): Bag | null {
   const next = nextTier(tier);
   if (!next || TIERS[next].locked) return null;
   const factor = Math.pow(GEAR.upgradeCostGrowth, tierIndex(tier));
   const out: Bag = {};
-  for (const [k, v] of Object.entries(GEAR.baseUpgradeCost) as [ResourceKey, number][]) {
+  for (const [k, v] of Object.entries(GEAR.baseUpgradeCostBySlot[slot]) as [ResourceKey, number][]) {
     out[k] = Math.ceil(Math.round(v * factor * 1e6) / 1e6);
   }
   return out;
@@ -170,12 +174,17 @@ export function itemWorksFor(item: GearItem, profession: ProfessionKey): boolean
   return item.slot !== "tool" || item.kind === profession;
 }
 
-/** Cost to refine an item from +r to +(r+1) (null at the max). */
-export function refineCost(refine: number): Bag | null {
+/**
+ * Cost to refine an item from +r to +(r+1) (null at the max). `discountPct`
+ * comes from the Forja comunitária (design §20).
+ */
+export function refineCost(refine: number, slot: SlotKey = "weapon", discountPct = 0): Bag | null {
   if (refine >= REFINE.maxLevel) return null;
   const out: Bag = {};
-  const growth = Math.pow(REFINE.costGrowth, refine);
-  for (const [k, v] of Object.entries(REFINE.costPerLevel) as [ResourceKey, number][]) out[k] = Math.ceil(Math.round(v * (refine + 1) * growth * 1e6) / 1e6);
+  const growth = Math.pow(REFINE.costGrowth, refine) * (1 - discountPct / 100);
+  for (const [k, v] of Object.entries(REFINE.costPerLevelBySlot[slot]) as [ResourceKey, number][]) {
+    out[k] = Math.max(1, Math.ceil(Math.round(v * (refine + 1) * growth * 1e6) / 1e6));
+  }
   return out;
 }
 
