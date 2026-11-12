@@ -5,6 +5,7 @@ import type { AvatarKey } from "@/art/avatars";
 import { NightGame } from "@/prototype/night/NightGame";
 import { devNightAction, finishPatrolAction, startPatrolAction, type StartPatrolResult } from "@/app/actions";
 import { NIGHT_ROLES, NIGHT_ROLE_KEYS, type NightRoleKey } from "@/game/config";
+import { Pane, Split, SplitMain } from "./Split";
 import type { ScreenProps } from "./types";
 
 /** What the team loses when nobody plays a role tonight. */
@@ -30,6 +31,7 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
   const { night, me } = state;
   const [run, setRun] = useState<NonNullable<StartPatrolResult["run"]> | null>(null);
   const [starting, setStarting] = useState(false);
+  const [pane, setPane] = useState("team");
   const holds = night.defense >= night.horde;
   // not enough energy for today's patrol (training after it is free)
   const tired = me.energy.now < me.energy.patrolCost;
@@ -69,9 +71,22 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
         ? "Expedições de hoje feitas"
         : tired ? "Sem energia para a expedição" : `Sair em expedição (${night.expeditionsLeft} hoje)`;
 
+  const patrolButton = (
+    <button className="btn big" disabled={pending || starting || tired || (me.patrolledTonight && !canExplore)} onClick={begin}>
+      {label}
+    </button>
+  );
+  const tabs = [
+    { key: "team", label: night.team.missing.length > 0 ? "Time •" : "Time" },
+    { key: "patrol", label: "Ronda" },
+    ...(night.last ? [{ key: "last", label: "Última noite" }] : []),
+    ...(night.seasons.length > 0 ? [{ key: "seasons", label: "Temporadas" }] : []),
+  ];
+
   return (
-    <>
-      <section className="panel stack">
+    <Split tabs={tabs} active={pane} onPick={setPane}>
+      <SplitMain>
+      <section className="panel stack fire-panel">
         <div className="row between">
           <h2>Fogueira</h2>
           <span className="small muted">Temporada {night.season}</span>
@@ -93,12 +108,18 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
           {" "}
           {night.lasts === null ? "A fogueira aguenta as próximas noites." : `No ritmo atual, ela apaga em ${night.lasts} ${night.lasts === 1 ? "noite" : "noites"}.`}
         </p>
-        <p className="small muted">
+        <p className="small muted port-only">
           {night.patrolled} de {night.active} moradores ativos já fizeram a ronda. Quem faz a ronda defende com ×1,5; quem dorme, com ×0,5.
         </p>
+        <div className="land-only">{patrolButton}</div>
       </section>
+      </SplitMain>
 
+      <Pane name="team">
       <section className="panel stack">
+        <p className="small muted land-only">
+          {night.patrolled} de {night.active} moradores ativos já fizeram a ronda. Quem faz a ronda defende com ×1,5; quem dorme, com ×0,5.
+        </p>
         <div className="row between">
           <h2>Time de hoje</h2>
           <span className="small muted">conta quem fez a ronda</span>
@@ -120,7 +141,9 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
           cada 5 moradores em cada papel já chega no máximo. Troque de classe na aba Herói antes da ronda.
         </p>
       </section>
+      </Pane>
 
+      <Pane name="patrol">
       <section className="panel stack">
         <h2>Sua ronda</h2>
         <p className="small">
@@ -134,9 +157,7 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
             (você tem {me.energy.now} de {me.energy.max}; volta 10 por hora).
           </p>
         )}
-<button className="btn big" disabled={pending || starting || tired || (me.patrolledTonight && !canExplore)} onClick={begin}>
-          {label}
-        </button>
+        <div className="port-only">{patrolButton}</div>
         <p className="small muted">
           As estrelas da ronda dão moedas e materiais achados na mata. Depois da ronda do dia, você ainda pode sair em até
           3 expedições, só pelo que achar. Cada saída custa {me.energy.patrolCost} de energia.
@@ -147,8 +168,10 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
           </button>
         )}
       </section>
+      </Pane>
 
       {night.last && (
+        <Pane name="last">
         <section className="panel stack">
           <h2>Última noite</h2>
           <p>
@@ -160,9 +183,11 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
                 : "A defesa segurou tudo!"}
           </p>
         </section>
+        </Pane>
       )}
 
       {night.seasons.length > 0 && (
+        <Pane name="seasons">
         <section className="panel">
           <h2>Temporadas</h2>
           {night.seasons.map((s) => (
@@ -172,7 +197,8 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
             </div>
           ))}
         </section>
+        </Pane>
       )}
-    </>
+    </Split>
   );
 }

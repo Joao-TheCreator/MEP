@@ -446,3 +446,57 @@ body:has(.night) { background: #141a2e; }
   .slot-btn { padding: 3px 6px 4px; }
   .slot-label { font-size: 14px; }
 }
+
+/* ---- Split: main on the left, tabbed panes on the right (lying down, roadmap 7b) ---- */
+.split, .split-main, .pane { display: contents; }
+.pane-tabs, .land-only { display: none; }
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .port-only { display: none !important; }
+  .land-only { display: revert; }
+  .screen:has(> .split) { display: block; overflow: hidden; padding: 0; }
+  .split {
+    height: 100%; display: grid; gap: 6px 10px; padding: var(--px) calc(var(--px) * 2);
+    grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "main tabs" "main pane";
+  }
+  .split:not(:has(> .pane-tabs)) { grid-template-areas: "main pane" "main pane"; }
+  .split-main { grid-area: main; display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
+  .split-main > .panel { margin: 0; padding: 10px; }
+  .pane-tabs { grid-area: tabs; display: flex; margin: 0; }
+  .pane-tabs .btn { padding-left: 4px; padding-right: 4px; white-space: nowrap; }
+  .pane { grid-area: pane; display: none; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: calc(var(--px) * 2); }
+  .pane.active { display: block; }
+  .pane > .panel { margin: 0 0 10px; padding: 10px; }
+  .split .big-number { font-size: 36px; }
+  .split .btn.big { font-size: 17px; padding: 9px; }
+}
+
+/* ---- Ranking podium ---- */
+.podium { display: grid; grid-template-columns: repeat(3, 1fr); align-items: end; gap: 6px; margin-top: 8px; }
+.podium-spot { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1px; min-width: 0; }
+.podium-name { font-family: var(--font-display); font-weight: 500; font-size: 14px; color: var(--wine);
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.podium-step { width: 100%; margin-top: 4px; display: grid; place-items: center; font-family: var(--font-display); color: var(--paper);
+  background: var(--wood); box-shadow: inset 0 var(--px) 0 #c48b52, inset 0 calc(var(--px) * -1) 0 var(--wood-dark); }
+.place-1 .podium-step { height: 44px; background: var(--gold); color: var(--ink); box-shadow: inset 0 var(--px) 0 #f3d98a, inset 0 calc(var(--px) * -1) 0 #c4963a; }
+.place-2 .podium-step { height: 30px; background: #c9ced6; color: var(--ink); box-shadow: inset 0 calc(var(--px) * -1) 0 #9aa0aa; }
+.place-3 .podium-step { height: 20px; }
+
+/* ---- Stock tab: standing up, "Meu estoque | Vendinha" shows one side or the other ---- */
+.split.shop-on .split-main, .split.shop-on .pane[data-pane="send"], .split.shop-on .pane[data-pane="people"] { display: none; }
+.split:not(.shop-on) .pane[data-pane="shop"] { display: none; }
+
+@media (orientation: landscape) and (max-height: 540px) {
+  /* lying down the stock is always on the left and the active pane decides the right side */
+  .split.shop-on .split-main { display: flex; }
+  .split .pane[data-pane]:not(.active) { display: none; }
+  .split .pane.active[data-pane] { display: block; }
+  .stock-panel .inv-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+  .stock-panel .slot { flex-direction: column; gap: 2px; padding: 4px; text-align: center; }
+  .stock-panel .slot b { font-size: 19px; }
+  .fire-panel { gap: 6px; }
+  .fire-panel .night-versus b { font-size: 24px; }
+  .split-main .task, .split-main .market-row { padding-bottom: 4px; }
+}

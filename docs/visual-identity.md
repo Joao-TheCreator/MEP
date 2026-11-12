@@ -137,10 +137,22 @@ de computador, larga e alta, continua com o layout em pé.
 | Barra de cima e dica | Duas linhas | Uma linha só |
 | Sítio | Mapa cheio com gaveta embaixo | Mapa à esquerda, painel fixo de 300 px à direita |
 | Herói | Boneco com os 8 espaços em cima, painel embaixo | Boneco à esquerda, painel à direita, sem rolar a página |
-| Outras abas | Uma coluna | Duas colunas, rolando por dentro (ajuste fino na 7b) |
+| Oficina | Tarefas, produção, receitas, melhorar | Produção e Coletar à esquerda; Tarefas, Receitas e Melhorar em abas |
+| Noite | Fogueira, time, ronda, última noite, temporadas | Fogueira, horda × defesa e Fazer a ronda à esquerda; Time, Ronda, Última noite e Temporadas em abas |
+| Estoque | "Meu estoque \| Vendinha" troca de tela | Estoque sempre à esquerda; Vendinha, Enviar e Moradores em abas |
+| Ranking | Pódio em cima, lista embaixo | Pódio à esquerda, lista rolando à direita |
 | Ronda | Arena em cima, especial embaixo | Arena na altura da tela à esquerda, placar e especial à direita |
 
 **Herói:** o boneco fica no centro, com Cabeça, Corpo, Mãos e Pés à esquerda e Arma,
 Ferramenta, Broche e Pulseira à direita. Cada espaço mostra o tier na cor dele e o refino;
 um ponto vermelho avisa quando dá para melhorar. O painel tem as abas Item, Atributos,
 Talentos e Classe. A mochila da prévia do Rodrigo ainda não existe (roadmap 7c).
+
+**Padrão "split" (7b):** `src/components/screens/Split.tsx`. Deitado, o que importa fica
+fixo à esquerda (`SplitMain`) e o resto vai para abas à direita (`Pane`); só o painel da
+aba aberta aparece e rola por dentro. Em pé o invólucro some (`display: contents`) e os
+painéis aparecem na ordem do HTML, como antes. Classes de apoio: `.port-only` e
+`.land-only`.
+
+**Pódio do Ranking:** o 1º, 2º e 3º lugar de corpo inteiro sobre degraus (ouro, prata,
+madeira), seguindo o período escolhido (Semana, Anterior, Geral). Só aparece quem pontuou.

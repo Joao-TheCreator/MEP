@@ -5,9 +5,20 @@ import { PROFESSIONS, RESOURCES, type ResourceKey } from "@/game/config";
 import { logout, sendAction } from "@/app/actions";
 import { ResIcon } from "../Res";
 import { Avatar } from "../Avatar";
+import { MarketScreen } from "./MarketScreen";
+import { Pane, Split, SplitMain } from "./Split";
 import type { ScreenProps } from "./types";
 
-export function StockScreen({ state, act, pending }: ScreenProps) {
+/**
+ * The stock tab. Standing up: "Meu estoque | Vendinha" switches between the
+ * stock (with sending and residents) and the shop. Lying down: the stock is
+ * always on the left and the shop, sending and residents are tabs on the right.
+ */
+export function StockScreen(props: ScreenProps) {
+  const { state, act, pending } = props;
+  // "send" = the stock side standing up (as before); lying down it opens the Enviar tab
+  const [pane, setPane] = useState("send");
+  const shop = pane === "shop";
   const { inventory, members, me } = state;
   const items = Object.entries(inventory) as [ResourceKey, number][];
   const others = members.filter((m) => m.id !== me.id);
@@ -16,8 +27,19 @@ export function StockScreen({ state, act, pending }: ScreenProps) {
   const [qty, setQty] = useState(10);
 
   return (
-    <>
-      <section className="panel">
+    <Split
+      className={shop ? "shop-on" : ""}
+      tabs={[{ key: "shop", label: "Vendinha" }, { key: "send", label: "Enviar" }, { key: "people", label: "Moradores" }]}
+      active={pane}
+      onPick={setPane}
+    >
+      <div className="seg stock-seg port-only">
+        <button className="btn small" aria-pressed={!shop} onClick={() => setPane("send")}>Meu estoque</button>
+        <button className="btn small" aria-pressed={shop} onClick={() => setPane("shop")}>Vendinha</button>
+      </div>
+      <Pane name="shop"><MarketScreen {...props} /></Pane>
+      <SplitMain>
+      <section className="panel stock-panel">
         <h2>Seu estoque</h2>
         {items.length === 0 ? (
           <p className="muted">Vazio. Vá até a Oficina e colete sua produção!</p>
@@ -32,7 +54,9 @@ export function StockScreen({ state, act, pending }: ScreenProps) {
           </div>
         )}
       </section>
+      </SplitMain>
 
+      <Pane name="send">
       <section className="panel stack">
         <h2>Enviar para um amigo</h2>
         {others.length === 0 ? (
@@ -66,7 +90,9 @@ export function StockScreen({ state, act, pending }: ScreenProps) {
           </>
         )}
       </section>
+      </Pane>
 
+      <Pane name="people">
       <section className="panel">
         <h2>Moradores</h2>
         {members.map((m) => (
@@ -79,6 +105,7 @@ export function StockScreen({ state, act, pending }: ScreenProps) {
           <button className="btn small secondary">Sair</button>
         </form>
       </section>
-    </>
+      </Pane>
+    </Split>
   );
 }
