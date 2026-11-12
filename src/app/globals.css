@@ -500,3 +500,12 @@ body:has(.night) { background: #141a2e; }
   .fire-panel .night-versus b { font-size: 24px; }
   .split-main .task, .split-main .market-row { padding-bottom: 4px; }
 }
+
+/* ---- Backpack (design §21) ---- */
+.slot-better { position: absolute; bottom: 3px; right: 5px; font-family: var(--font-display); font-size: 14px; color: var(--leaf-dark); }
+.bag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+.bag-item { position: relative; display: flex; flex-direction: column; gap: 1px; text-align: left; font: inherit; color: var(--ink); cursor: pointer;
+  background: var(--paper-dark); border: 0; border-left: 5px solid var(--wood); padding: 4px 8px 5px; line-height: 1.05; box-shadow: 0 0 0 2px var(--wood); }
+.bag-item[aria-pressed="true"] { background: #fff6e2; box-shadow: 0 0 0 var(--px) var(--wine); }
+.bag-item b { font-family: var(--font-display); font-weight: 500; font-size: 14px; }
+.bag-detail { padding: 8px; background: #fff6e2; box-shadow: inset 0 0 0 2px var(--paper-dark); }

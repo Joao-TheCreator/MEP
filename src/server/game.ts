@@ -20,12 +20,25 @@ import {
   type RecipeKey,
   type ResourceKey,
   type SlotKey,
+  type TierKey,
   SLOT_KEYS,
   TALENTS,
   SLOTS,
   TIERS,
 } from "@/game/config";
-import { attributePointsEarned, attributesError, gearUpgradeCost, nextTier, refineCost, talentsError, xpFor, type TalentPicks } from "@/game/character";
+import {
+  attributePointsEarned,
+  attributesError,
+  equipBest,
+  gearSuggestions,
+  gearUpgradeCost,
+  itemValue,
+  nextTier,
+  refineCost,
+  talentsError,
+  xpFor,
+  type TalentPicks,
+} from "@/game/character";
 import { fireMaxHp, hordeStrength, nextNightTime, nightsFireLasts } from "@/game/night";
 import {
   computeProduction,
@@ -55,6 +68,7 @@ import {
   type TaskKind,
 } from "@/game/tasks";
 import { patrolRewards, replayPatrol, type HeroClass } from "@/game/patrol";
+import { addToBag, bagCapacity, dismantleValue, isWorthless, rollGearDrops, type BagItem } from "@/game/backpack";
 import { previousWeekStart, weekStart } from "@/game/week";
 import type { Sql } from "postgres";
 import { db, type Tx } from "./db";
@@ -78,6 +92,7 @@ export class GameError extends Error {}
 
 interface PlayerRow extends CharacterRow {
   coins: number;
+  bag: BagItem[];
   energy: number;
   energy_at: Date;
   id: string;
@@ -548,11 +563,72 @@ export async function finishPatrol(userId: string, runId: string, specialTicks: 
     await tx`UPDATE patrol_runs SET finished_at = ${now}, stars = ${result.stars} WHERE id = ${run.id}`;
     await tx`UPDATE players SET coins = coins + ${rewards.coins} WHERE id = ${player.id}`;
     await addItems(tx, player.id, rewards.loot);
+    // gear found on the patrol goes to the backpack; what does not fit is dismantled
+    const found = rollGearDrops(result.stars, night, run.seed);
+    const packed = addToBag(player.bag ?? [], found, bagCapacity(characterOf(player).level));
+    if (found.length > 0) {
+      await tx`UPDATE players SET bag = ${tx.json(packed.bag as never)} WHERE id = ${player.id}`;
+      await addItems(tx, player.id, packed.dismantled);
+    }
     // a wipe between start and end would have reset the season: only count the same night
     const counts = run.kind === "patrol" && run.night === night && player.patrol_night !== night;
     if (counts) await tx`UPDATE players SET patrol_night = ${night} WHERE id = ${player.id}`;
     await bump(tx, player, farm.level, now, "patrol", 1);
-    return { ...result, ...rewards, kind: run.kind, counts, night };
+    return { ...result, ...rewards, kind: run.kind, counts, night, found: packed.kept, dismantledOnFind: packed.dismantled };
+  });
+}
+
+/** Wears an item from the backpack; the worn one goes back to the backpack (unless worthless). */
+export async function equipFromBag(userId: string, itemId: string) {
+  return withFarmTx(userId, async (tx, player) => {
+    const bag = [...(player.bag ?? [])];
+    const i = bag.findIndex((it) => it.id === itemId);
+    if (i < 0) throw new GameError("Esse item não está mais na mochila.");
+    const item = bag[i];
+    const gear = { ...player.gear };
+    const worn = gear[item.slot] ?? { tier: "wood" as const, refine: 0 };
+    gear[item.slot] = { tier: item.tier, refine: item.refine };
+    bag.splice(i, 1);
+    if (!isWorthless(worn)) bag.push({ id: `${item.id}-off`, slot: item.slot, tier: worn.tier, refine: worn.refine });
+    await tx`UPDATE players SET gear = ${tx.json(gear as never)}, bag = ${tx.json(bag as never)} WHERE id = ${player.id}`;
+    return { slot: item.slot, tier: TIERS[item.tier].name };
+  });
+}
+
+/** Wears every backpack item that beats the worn one (gearSuggestions / equipBest, design §12.4). */
+export async function equipBestFromBag(userId: string) {
+  return withFarmTx(userId, async (tx, player) => {
+    const bag = player.bag ?? [];
+    const loadout = loadoutOf(player);
+    const asGear = bag.map((it) => ({ slot: it.slot, tier: it.tier, refine: it.refine, kind: it.slot === "tool" ? player.profession : undefined }));
+    const best = equipBest(loadout, asGear, player.profession);
+    const changed = SLOT_KEYS.filter((k) => best.loadout[k] !== loadout[k]).length;
+    if (changed === 0) throw new GameError("Nada na mochila é melhor do que o que você está usando.");
+    const gear: Record<string, { tier: TierKey; refine: number }> = {};
+    for (const k of SLOT_KEYS) {
+      const it = best.loadout[k];
+      if (it) gear[k] = { tier: it.tier, refine: it.refine };
+    }
+    const nextBag: BagItem[] = [];
+    best.bag.forEach((it, i) => {
+      if (it && !isWorthless(it)) nextBag.push({ id: bag[i]?.id ?? `swap-${i}`, slot: it.slot, tier: it.tier, refine: it.refine });
+    });
+    await tx`UPDATE players SET gear = ${tx.json(gear as never)}, bag = ${tx.json(nextBag as never)} WHERE id = ${player.id}`;
+    return { changed };
+  });
+}
+
+/** Dismantles a backpack item into materials (design §21). */
+export async function dismantleItem(userId: string, itemId: string) {
+  return withFarmTx(userId, async (tx, player) => {
+    const bag = [...(player.bag ?? [])];
+    const i = bag.findIndex((it) => it.id === itemId);
+    if (i < 0) throw new GameError("Esse item não está mais na mochila.");
+    const back = dismantleValue(bag[i]);
+    bag.splice(i, 1);
+    await tx`UPDATE players SET bag = ${tx.json(bag as never)} WHERE id = ${player.id}`;
+    await addItems(tx, player.id, back);
+    return back;
   });
 }
 
@@ -684,6 +760,11 @@ export interface GameState {
       bonuses: ReturnType<typeof characterOf>["bonuses"];
       nightClass: NightClassKey;
       gear: { slot: SlotKey; tier: string; refine: number; value: number; upgradeCost: Bag | null; refineCost: Bag | null }[];
+      /** Backpack (design §21): each item with its bonus, the gain over the worn one and what dismantling gives. */
+      bag: { id: string; slot: SlotKey; tier: TierKey; refine: number; value: number; gain: number; dismantle: Bag }[];
+      bagCapacity: number;
+      /** Slots where the backpack has something better than what is worn. */
+      betterInBag: SlotKey[];
       /** Power at night if you patrol / if you rest. */
       power: { patrol: number; rest: number };
     };
@@ -842,6 +923,16 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
             refineCost: refineCost(it.refine, slot, effects.refineDiscountPct),
           };
         }),
+        bag: (player.bag ?? []).map((it) => {
+          const value = itemValue({ slot: it.slot, tier: it.tier, refine: it.refine });
+          return { ...it, value, gain: Math.round((value - itemValue(loadout[it.slot]!)) * 100) / 100, dismantle: dismantleValue(it) };
+        }),
+        bagCapacity: bagCapacity(me.level),
+        betterInBag: gearSuggestions(
+          loadout,
+          (player.bag ?? []).map((it) => ({ slot: it.slot, tier: it.tier, refine: it.refine, kind: it.slot === "tool" ? player.profession : undefined })),
+          player.profession,
+        ).map((g) => g.slot),
         power: {
           patrol: Math.round(residentPowerOf(player, true)),
           rest: Math.round(residentPowerOf(player, false)),

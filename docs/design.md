@@ -733,3 +733,37 @@ crescem com o grupo (§15.5).
 - A horda cresce 11,5% por noite (era 10%) para a temporada continuar em 3 a 5 semanas.
 - Limite: o simulador ainda **não** modela moedas, Vendinha, tarefas nem loot da ronda;
   ele assume que o grupo troca materiais entre si sem perda.
+
+## 21. Mochila (proposta do João, em revisão)
+
+**Itens prontos são achados na ronda, ficam na mochila, e cada um escolhe equipar ou
+desmontar.** Código: `src/game/backpack.ts`; números em `BACKPACK` (`config.ts`). Usa o
+que o Rodrigo já tinha deixado no #20: `BAG`, `bagPagesOpen`, `gearSuggestions` e
+`equipBest` (§12.4).
+
+- **Achar:** cada estrela da ronda ou de uma expedição tem **10%** de chance de achar um
+  item. O servidor sorteia com a semente da ronda (§18.1), então não dá para forçar.
+  - Espaço: qualquer um dos 8.
+  - Tier pela noite:
+
+| Noites | Tier | Às vezes |
+| --- | --- | --- |
+| 1 a 7 | Bronze | — |
+| 8 a 14 | Ferro | 30% Bronze |
+| 15 a 21 | Prata | 30% Ferro |
+| 22 em diante | Ouro | 30% Prata |
+
+  - Diamante e Brasa **nunca caem**: só fazendo.
+  - Refino: +0 até a noite 9; depois, de +0 até `noite ÷ 10`.
+  - Referência: a ronda e três expedições com 3 estrelas dão cerca de 1 item por dia.
+- **Capacidade:** 24 itens por página aberta: 48 no começo, 72 a partir do nível 15.
+  Mochila cheia: o item achado é **desmontado na hora** e os materiais vão para o estoque.
+- **Equipar:** troca com o item do corpo, que volta para a mochila (Madeira +0 some, não
+  vale nada). **Equipar o melhor** troca de uma vez todos os espaços em que a mochila tem
+  algo melhor.
+- **Desmontar:** devolve **50%** dos materiais que o item custaria para chegar ao tier e ao
+  refino dele, no espaço dele (§20.1). Ex.: Arma de Bronze = 5 Tábuas e 2 Barras.
+- **Wipe:** a mochila **fica**, como o equipamento. Se o nível cair e a 3ª página fechar,
+  os itens continuam lá; só não entra item novo até liberar espaço.
+- **Limite:** o simulador da §15.5 não modela os itens achados; eles deixam as temporadas
+  um pouco mais longas do que a tabela mostra.

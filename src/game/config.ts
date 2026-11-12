@@ -693,3 +693,27 @@ export const NIGHT_CLASS_ROLE: Record<NightClassKey, NightRoleKey> = {
 
 /** Night classes a player can pick today. */
 export const PLAYABLE_NIGHT_CLASSES = ["volley", "mattress", "guitar"] as const satisfies readonly NightClassKey[];
+
+// ============================================================================
+// Backpack (design §21): gear found on patrols, equipped or dismantled.
+// ============================================================================
+
+export const BACKPACK = {
+  /** Chance of finding a gear item, per star of a patrol or expedition. */
+  dropChancePerStar: 0.1,
+  /**
+   * Tier found by night: [first night, tier, chance of one tier lower]. Diamond
+   * and Ember never drop: they are only made.
+   */
+  dropTiers: [
+    [1, "bronze", 0],
+    [8, "iron", 0.3],
+    [15, "silver", 0.3],
+    [22, "gold", 0.3],
+  ] as [number, TierKey, number][],
+  /** From this night on a found item may come refined, up to night ÷ refinePerNights. */
+  refineFromNight: 10,
+  refinePerNights: 10,
+  /** Dismantling gives back this % of the materials the item would cost to make. */
+  dismantlePct: 50,
+} as const;

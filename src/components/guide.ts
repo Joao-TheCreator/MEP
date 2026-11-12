@@ -35,6 +35,8 @@ export interface HintInput {
   taskReward: boolean;
   /** Name of a night role nobody is playing tonight (tank or support), if the player could still switch. */
   missingRole: string | null;
+  /** The backpack has something better than what is worn. */
+  betterInBag: boolean;
 }
 
 /** The single most useful thing to do now. The order below is the priority. */
@@ -53,6 +55,7 @@ export function nextStep(i: HintInput): Hint {
   if (i.freeAttributePoints > 0) {
     return { text: `Você tem ${i.freeAttributePoints} ponto${i.freeAttributePoints > 1 ? "s" : ""} de atributo para usar.`, tab: "hero" };
   }
+  if (i.betterInBag) return { text: "Tem item melhor na mochila. Equipe no Herói.", tab: "hero" };
   if (i.talentToPick) return { text: "Novo talento liberado. Escolha o seu.", tab: "hero" };
   if (i.gearReady) return { text: `Dá para melhorar: ${i.gearReady}.`, tab: "hero" };
   if (i.canUpgradeWorkshop) return { text: `Dá para melhorar ${i.workshopName}.`, tab: "work" };

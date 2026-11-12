@@ -18,7 +18,16 @@ import {
   type TierKey,
 } from "@/game/config";
 import { hasEnough } from "@/game/rules";
-import { attributeAction, nightClassAction, refineGearAction, talentAction, upgradeGearAction } from "@/app/actions";
+import {
+  attributeAction,
+  dismantleItemAction,
+  equipBestAction,
+  equipItemAction,
+  nightClassAction,
+  refineGearAction,
+  talentAction,
+  upgradeGearAction,
+} from "@/app/actions";
 import type { AvatarKey } from "@/art/avatars";
 import { Walker } from "@/art/WalkerSprite";
 import { ResList } from "../Res";
@@ -39,7 +48,7 @@ const BONUS_TEXT: Record<BonusKey, (v: number) => string> = {
 
 const LEFT: SlotKey[] = ["hat", "body", "hands", "feet"];
 const RIGHT: SlotKey[] = ["weapon", "tool", "pin", "bracelet"];
-type PanelTab = "item" | "attrs" | "talents" | "class";
+type PanelTab = "item" | "bag" | "attrs" | "talents" | "class";
 
 /**
  * The hero tab (design §11, §12; layout from issue #22): the resident in the
@@ -55,6 +64,8 @@ export function HeroScreen({ state, act, pending }: ScreenProps) {
   const tree = TALENTS[me.profession];
   const [slot, setSlot] = useState<SlotKey>("weapon");
   const [tab, setTab] = useState<PanelTab>("item");
+  const [picked, setPicked] = useState<string | null>(null);
+  const better = new Set(c.betterInBag);
 
   const itemName = (k: SlotKey) =>
     k === "tool" ? WORK_TOOLS[me.profession].name : k === "weapon" ? NIGHT_WEAPONS[c.nightClass].name : SLOTS[k].itemName;
@@ -75,6 +86,7 @@ export function HeroScreen({ state, act, pending }: ScreenProps) {
         <span className="slot-label">{SLOTS[k].label}</span>
         <b style={{ color: tier.color }}>{tier.name}{g.refine > 0 ? ` +${g.refine}` : ""}</b>
         {canStep(k) && <span className="slot-dot" aria-label="Dá para melhorar" />}
+        {better.has(k) && <span className="slot-better" aria-label="Tem melhor na mochila">↑</span>}
       </button>
     );
   };
@@ -107,6 +119,9 @@ export function HeroScreen({ state, act, pending }: ScreenProps) {
       <section className="panel hero-panel">
         <div className="seg hero-tabs">
           <button className="btn small" aria-pressed={tab === "item"} onClick={() => setTab("item")}>Item</button>
+          <button className="btn small" aria-pressed={tab === "bag"} onClick={() => setTab("bag")}>
+            Mochila ({c.bag.length}){better.size > 0 ? " ↑" : ""}
+          </button>
           <button className="btn small" aria-pressed={tab === "attrs"} onClick={() => setTab("attrs")}>
             Atributos{c.freePoints > 0 ? ` (${c.freePoints})` : ""}
           </button>
@@ -140,10 +155,61 @@ export function HeroScreen({ state, act, pending }: ScreenProps) {
                 </>
               )}
               <p className="small muted">
-                O equipamento fica quando a fogueira apaga; nível, atributos e talentos zeram. Mochila: em breve.
+                O equipamento e a mochila ficam quando a fogueira apaga; nível, atributos e talentos zeram.
               </p>
             </>
           )}
+
+          {tab === "bag" && (() => {
+            const sel = c.bag.find((it) => it.id === picked) ?? null;
+            return (
+              <>
+                <div className="row between">
+                  <span className="small muted">{c.bag.length} de {c.bagCapacity} espaços</span>
+                  {better.size > 0 && (
+                    <button className="btn small" disabled={pending} onClick={() => act(equipBestAction)}>Equipar o melhor</button>
+                  )}
+                </div>
+                {c.bag.length === 0 ? (
+                  <p className="small muted">
+                    Vazia. Cada estrela da ronda e das expedições tem chance de achar um item pronto; noites mais altas dão
+                    itens melhores.
+                  </p>
+                ) : (
+                  <div className="bag-grid">
+                    {c.bag.map((it) => {
+                      const t = TIERS[it.tier];
+                      return (
+                        <button key={it.id} type="button" className="bag-item" aria-pressed={picked === it.id}
+                          style={{ borderColor: t.color }} onClick={() => setPicked(picked === it.id ? null : it.id)}>
+                          <span className="slot-label">{SLOTS[it.slot].label}</span>
+                          <b style={{ color: t.color }}>{t.name}{it.refine ? ` +${it.refine}` : ""}</b>
+                          {it.gain > 0 && <span className="slot-better">↑</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {sel && (
+                  <div className="bag-detail stack">
+                    <b>
+                      <span style={{ color: TIERS[sel.tier].color }}>{TIERS[sel.tier].name}</span> {itemName(sel.slot)}
+                      {sel.refine ? ` +${sel.refine}` : ""}
+                    </b>
+                    <span className="small">
+                      {BONUS_TEXT[SLOTS[sel.slot].stat](sel.value)} ·{" "}
+                      {sel.gain > 0 ? <b className="ok-text">{BONUS_TEXT[SLOTS[sel.slot].stat](sel.gain)} a mais</b> : sel.gain < 0 ? "pior que o seu" : "igual ao seu"}
+                    </span>
+                    <div className="row wrap" style={{ gap: 6 }}>
+                      <button className="btn small" disabled={pending} onClick={() => { act(() => equipItemAction(sel.id)); setPicked(null); }}>Equipar</button>
+                      <button className="btn small secondary" disabled={pending} onClick={() => { act(() => dismantleItemAction(sel.id)); setPicked(null); }}>Desmontar</button>
+                      {Object.keys(sel.dismantle).length > 0 && <ResList bag={sel.dismantle} />}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {tab === "attrs" && (
             <>

@@ -181,6 +181,7 @@ function hintFor(state: GameState, now: Date): Hint {
     workshopName: prof.workshop.name,
     canDonateTo: canDonate ? b!.name : null,
     taskReward: state.tasks.claimable,
+    betterInBag: state.me.character.betterInBag.length > 0,
     missingRole: (() => {
       const k = night.team.missing.find((r) => r !== "shooter" && r !== night.myRole);
       return k ? NIGHT_ROLES[k].name.toLowerCase() : null;

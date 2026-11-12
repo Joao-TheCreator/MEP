@@ -185,7 +185,7 @@ Cada fase = 1 PR pequeno, com lint + testes + build, mostrado no localhost. Áre
 | **6. Equipamento por espaço + obras novas** | Custos por espaço; 5 obras; sprites das obras; rebalanceamento completo. | R + J | 5 |
 | **7a. Telas deitadas: casca, Sítio e Herói** | Abas na lateral, barra de uma linha, Sítio com painel lateral, Herói com os 8 espaços em volta do boneco. Funciona deitado e em pé. As outras abas ficam em duas colunas, com rolagem. | J | decisão #22 |
 | **7b. Telas deitadas: o resto** | Oficina, Noite, Estoque/Vendinha e Ranking cabendo sem rolar (padrão "split": principal à esquerda, abas à direita); pódio no Ranking. Feito no PR #36. | J | 7a |
-| **7c. Mochila** | Itens soltos (loot de equipamento na ronda), equipar e guardar, "Equipar o melhor". Pede regra, servidor e banco. | R + J | 7a |
+| **7c. Mochila** | Itens achados na ronda (10% por estrela, tier pela noite), equipar, "Equipar o melhor" e desmontar em materiais; a mochila fica no wipe. Feito no PR #37. | R + J | 7a |
 | **8. Papéis (leva 2)** | Cozinheira e Lanterna com minijogo próprio; Violão ganha o dele. | J + R | 5 |
 | **9. Polimento** | Avisos no celular (armazém cheio, horda, fogueira baixa), sons, trailer atualizado, ajuste fino com dados reais do grupo. | J + R | 2 |
 
