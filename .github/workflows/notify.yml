@@ -1,0 +1,29 @@
+# Phone notices (design §23): calls the game's notify cron every 30 minutes.
+# Turn it on after the deploy by adding two repository secrets:
+#   NOTIFY_URL   = https://<your-app>.vercel.app/api/cron/notify
+#   CRON_SECRET  = the same CRON_SECRET set on Vercel
+# Without them the job just skips.
+name: Avisos do sítio
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Chamar o cron de avisos
+        env:
+          NOTIFY_URL: ${{ secrets.NOTIFY_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$NOTIFY_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "NOTIFY_URL/CRON_SECRET não configurados: nada a fazer."
+            exit 0
+          fi
+          curl -fsS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" "$NOTIFY_URL"
