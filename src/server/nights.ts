@@ -139,7 +139,7 @@ async function wipeFarm(tx: Tx, farm: NightFarmRow, night: number, at: Date) {
   await tx`DELETE FROM farm_building_progress WHERE farm_id = ${farm.id}`;
   await tx`DELETE FROM farm_buildings WHERE farm_id = ${farm.id}`;
   await tx`
-    UPDATE players SET workshop_level = 1, xp = 0, attributes = '{}', talents = '[]',
+    UPDATE players SET workshop_level = 1, xp = 0, coins = 0, attributes = '{}', talents = '[]',
       patrol_night = NULL, last_collected_at = ${at}, profession_changed_at = NULL
     WHERE farm_id = ${farm.id}`;
   farm.level = 1;

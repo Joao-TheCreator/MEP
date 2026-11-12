@@ -13,6 +13,7 @@ import { StockScreen } from "./screens/StockScreen";
 import { RankingScreen } from "./screens/RankingScreen";
 import { NightScreen } from "./screens/NightScreen";
 import { HeroScreen } from "./screens/HeroScreen";
+import { Coins, MarketScreen } from "./screens/MarketScreen";
 import type { ScreenProps } from "./screens/types";
 
 type Tab = "farm" | "work" | "hero" | "night" | "barn" | "rank";
@@ -28,6 +29,7 @@ const TABS: { key: Tab; label: string; icon: ResourceKey }[] = [
 
 export function Game({ state }: { state: GameState }) {
   const [tab, setTab] = useState<Tab>("farm");
+  const [shop, setShop] = useState(false);
   const [toast, setToast] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -58,6 +60,7 @@ export function Game({ state }: { state: GameState }) {
         <header className="topbar">
           <Sprite sprite={LOGO} scale={2} />
           <h1 className="grow">{state.farm.name}</h1>
+          <Coins n={state.me.coins} />
           <span className="lvl">Nível {state.farm.level}</span>
           <Avatar avatar={state.me.avatar} scale={2} />
         </header>
@@ -65,7 +68,15 @@ export function Game({ state }: { state: GameState }) {
         {tab === "work" && <WorkScreen {...ctx} />}
         {tab === "hero" && <HeroScreen {...ctx} />}
         {tab === "night" && <NightScreen {...ctx} />}
-        {tab === "barn" && <StockScreen {...ctx} />}
+        {tab === "barn" && (
+          <>
+            <div className="seg stock-seg">
+              <button className="btn small" aria-pressed={!shop} onClick={() => setShop(false)}>Meu estoque</button>
+              <button className="btn small" aria-pressed={shop} onClick={() => setShop(true)}>Vendinha</button>
+            </div>
+            {shop ? <MarketScreen {...ctx} /> : <StockScreen {...ctx} />}
+          </>
+        )}
         {tab === "rank" && <RankingScreen {...ctx} />}
       </main>
       <WipeNotice state={state} onSee={() => setTab("night")} />

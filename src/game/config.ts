@@ -501,3 +501,18 @@ export const NIGHT_REWARDS = {
   xpBase: 30,
   xpPerNight: 12,
 } as const;
+
+// ============================================================================
+// Coins and the farm shop "Vendinha" (design §16): sell what you make, buy any
+// material at a much worse price than trading with a friend.
+// ============================================================================
+
+export const MARKET = {
+  /** You sell at this % of the resource's point value (1 coin = 1 point). */
+  sellPct: 50,
+  /** You buy at this % of the point value. */
+  buyPct: 200,
+  /** Daily purchase limit per player, in points of value bought: base + perLevel × level. */
+  dailyBuyBase: 150,
+  dailyBuyPerLevel: 15,
+} as const;

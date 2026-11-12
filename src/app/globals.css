@@ -301,3 +301,10 @@ body:has(.night) { background: #141a2e; }
 .wipe-notice { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: #0b1030cc; }
 .wipe-notice .panel { max-width: 420px; }
 .wipe-notice h2 { color: var(--flame); }
+
+/* ---- Vendinha (design §16) ---- */
+.coins { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-display); }
+.topbar .coins { color: var(--gold); font-size: 16px; }
+.market-row { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-bottom: 2px dashed var(--paper-dark); }
+.stock-seg { margin-bottom: 8px; }
+.topbar h1 { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

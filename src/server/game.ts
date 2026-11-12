@@ -37,6 +37,7 @@ import {
   remainingForBuilding,
   workshopUpgradeCost,
 } from "@/game/rules";
+import { buyCost, buyPoints, dailyBuyLimit, gameDay, sellValue } from "@/game/market";
 import { previousWeekStart, weekStart } from "@/game/week";
 import type { Sql } from "postgres";
 import { db, type Tx } from "./db";
@@ -57,6 +58,7 @@ import {
 export class GameError extends Error {}
 
 interface PlayerRow extends CharacterRow {
+  coins: number;
   id: string;
   user_id: string;
   farm_id: string;
@@ -336,6 +338,48 @@ export async function professionCountsByInvite(code: string) {
   return { counts, missing: missingProfessions(counts) };
 }
 
+// ---------- Vendinha (design §16) ----------
+
+async function boughtToday(tx: Sql | Tx, playerId: string, now: Date): Promise<number> {
+  const [row] = await tx<{ points: number }[]>`
+    SELECT points FROM market_buys WHERE player_id = ${playerId} AND day = ${gameDay(now)}`;
+  return row?.points ?? 0;
+}
+
+/** Sells resources to the shop for coins. No XP and no ranking points. */
+export async function sellToMarket(userId: string, resource: ResourceKey, qty: number) {
+  return withFarmTx(userId, async (tx, player) => {
+    const coins = sellValue(resource, qty);
+    if (coins < 1) throw new GameError("Isso é pouco demais para vender. Junte mais um pouco.");
+    await removeItems(tx, player.id, { [resource]: qty });
+    await tx`UPDATE players SET coins = coins + ${coins} WHERE id = ${player.id}`;
+    return { coins };
+  });
+}
+
+/** Buys resources from the shop: much dearer than trading, with a daily limit. */
+export async function buyFromMarket(userId: string, resource: ResourceKey, qty: number) {
+  return withFarmTx(userId, async (tx, player, _farm, now) => {
+    const cost = buyCost(resource, qty);
+    const points = buyPoints(resource, qty);
+    const limit = dailyBuyLimit(characterOf(player).level);
+    const left = limit - (await boughtToday(tx, player.id, now));
+    if (points > left) {
+      throw new GameError(left < RESOURCES[resource].points
+        ? "Você já comprou o limite de hoje na Vendinha. Amanhã tem mais."
+        : `Hoje você ainda pode comprar ${Math.floor(left / RESOURCES[resource].points)} de ${RESOURCES[resource].name}.`);
+    }
+    const paid = await tx`
+      UPDATE players SET coins = coins - ${cost} WHERE id = ${player.id} AND coins >= ${cost} RETURNING coins`;
+    if (paid.length === 0) throw new GameError("Moedas insuficientes.");
+    await tx`
+      INSERT INTO market_buys (player_id, day, points) VALUES (${player.id}, ${gameDay(now)}, ${points})
+      ON CONFLICT (player_id, day) DO UPDATE SET points = market_buys.points + EXCLUDED.points`;
+    await addItems(tx, player.id, { [resource]: qty });
+    return { cost };
+  });
+}
+
 // ---------- night & character (design §11, §12, §15) ----------
 
 /** Signs up for tonight's patrol (played the night mini-game). */
@@ -456,6 +500,7 @@ export interface GameState {
     profession: ProfessionKey;
     workshopLevel: number;
     lastCollectedAt: string;
+    coins: number;
     upgradeCost: Bag | null;
     /** Changing profession: what it costs now and when it is allowed (null = now). */
     professionChange: { cost: Bag; availableAt: string | null };
@@ -474,6 +519,8 @@ export interface GameState {
     };
     patrolledTonight: boolean;
   };
+  /** Vendinha: today's purchase limit (points of value) and how much is used. */
+  market: { limit: number; used: number };
   night: {
     season: number;
     /** Number of the next attack in this season. */
@@ -572,6 +619,7 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       profession: player.profession,
       workshopLevel: player.workshop_level,
       lastCollectedAt: player.last_collected_at.toISOString(),
+      coins: player.coins,
       upgradeCost: workshopUpgradeCost(player.profession, player.workshop_level),
       professionChange: {
         cost: professionChangeCost(player.profession),
@@ -604,6 +652,7 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       },
       patrolledTonight: player.patrol_night === tonight,
     },
+    market: { limit: dailyBuyLimit(me.level), used: await boughtToday(sql, player.id, now) },
     night: {
       season: farm.season,
       night: tonight,

@@ -252,3 +252,25 @@ export async function devNightAction(): Promise<ActionResult> {
       : `Noite ${r.night}: horda ${r.horde} × defesa ${r.defense}. Fogueira: ${r.fireHp}.`;
   });
 }
+
+// ---------------- Vendinha (design §16) ----------------
+
+export async function sellAction(resource: string, amount: number): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = z.enum(RESOURCE_KEYS as [string, ...string[]]).parse(resource) as (typeof RESOURCE_KEYS)[number];
+    const n = qty.parse(amount);
+    const out = await game.sellToMarket(user.id, r, n);
+    return `Vendeu ${n} de ${RESOURCES[r].name} por ${out.coins} moedas.`;
+  });
+}
+
+export async function buyAction(resource: string, amount: number): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = z.enum(RESOURCE_KEYS as [string, ...string[]]).parse(resource) as (typeof RESOURCE_KEYS)[number];
+    const n = qty.parse(amount);
+    const out = await game.buyFromMarket(user.id, r, n);
+    return `Comprou ${n} de ${RESOURCES[r].name} por ${out.cost} moedas.`;
+  });
+}
