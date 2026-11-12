@@ -54,8 +54,9 @@ export function HeroScreen({ state, act, pending }: ScreenProps) {
           <div className="grow">
             <h2>{me.name} · nível {c.level}</h2>
             <div className="bar"><i style={{ width: `${xpPct}%` }} /></div>
+            <div className="bar energy" title="Energia"><i style={{ width: `${(me.energy.now / me.energy.max) * 100}%` }} /></div>
             <p className="small muted">
-              {c.xpForNext ? `${c.xpIntoLevel} / ${c.xpForNext} XP` : "Nível máximo"} · força à noite {c.power.patrol} (ronda) / {c.power.rest} (dormindo)
+              {c.xpForNext ? `${c.xpIntoLevel} / ${c.xpForNext} XP` : "Nível máximo"} · energia {me.energy.now}/{me.energy.max} · força à noite {c.power.patrol} (ronda) / {c.power.rest} (dormindo)
             </p>
           </div>
         </div>

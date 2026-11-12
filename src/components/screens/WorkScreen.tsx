@@ -4,9 +4,11 @@ import { PROFESSIONS, RECIPES, RECIPE_KEYS, RESOURCES } from "@/game/config";
 import { computeProduction, hasEnough, maxCraftable, ratePerHour, storageHours } from "@/game/rules";
 import { collectAction, craftAction, upgradeAction } from "@/app/actions";
 import { Res, ResIcon, ResList } from "../Res";
+import { TasksPanel } from "./TasksPanel";
 import type { ScreenProps } from "./types";
 
-export function WorkScreen({ state, now, act, pending }: ScreenProps) {
+export function WorkScreen(props: ScreenProps) {
+  const { state, now, act, pending } = props;
   const { me, farm, inventory } = state;
   const prof = PROFESSIONS[me.profession];
   const prod = computeProduction({
@@ -25,6 +27,7 @@ export function WorkScreen({ state, now, act, pending }: ScreenProps) {
 
   return (
     <>
+      <TasksPanel {...props} />
       <section className="panel stack">
         <div className="row between">
           <div>

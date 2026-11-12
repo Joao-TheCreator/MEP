@@ -285,3 +285,15 @@ export async function donateAllAction(): Promise<ActionResult> {
       : `Doou tudo o que a obra precisava: +${r.points} pontos.`;
   });
 }
+
+// ---------------- daily tasks (design §17) ----------------
+
+export async function claimTasksAction(): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = await game.claimDailyTasks(user.id);
+    return r.bonus
+      ? `Todas as tarefas de hoje feitas! +${r.coins} moedas e +${r.xp} XP.`
+      : `Tarefa concluída: +${r.coins} moedas e +${r.xp} XP.`;
+  });
+}

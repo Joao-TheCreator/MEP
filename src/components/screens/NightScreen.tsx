@@ -22,6 +22,8 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
   const { night, me } = state;
   const [playing, setPlaying] = useState(false);
   const holds = night.defense >= night.horde;
+  // not enough energy for today's patrol (training after it is free)
+  const tired = !me.patrolledTonight && me.energy.now < me.energy.patrolCost;
   const next = new Date(night.nextAt);
   const firePct = Math.round((night.fireHp / night.fireMax) * 100);
 
@@ -75,10 +77,13 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
         {me.patrolledTonight ? (
           <p className="ok-text">Você já fez a ronda de hoje. Defende a noite {night.night} com força total.</p>
         ) : (
-          <p className="small muted">Jogue a ronda antes das 20h para entrar na defesa com força total.</p>
+          <p className="small muted">
+            Jogue a ronda antes das 20h para entrar na defesa com força total. Custa {me.energy.patrolCost} de energia
+            (você tem {me.energy.now} de {me.energy.max}; volta 10 por hora).
+          </p>
         )}
-        <button className="btn big" disabled={pending} onClick={() => setPlaying(true)}>
-          {me.patrolledTonight ? "Jogar de novo (treino)" : "Fazer a ronda"}
+        <button className="btn big" disabled={pending || tired} onClick={() => setPlaying(true)}>
+          {me.patrolledTonight ? "Jogar de novo (treino)" : tired ? "Sem energia para a ronda" : "Fazer a ronda"}
         </button>
         {process.env.NODE_ENV !== "production" && (
           <button className="btn small secondary" disabled={pending} onClick={() => act(devNightAction)}>

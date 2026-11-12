@@ -31,6 +31,8 @@ export interface HintInput {
   workshopName: string;
   /** Name of the building under construction when the player holds something it needs. */
   canDonateTo: string | null;
+  /** A daily task is finished and its reward was not claimed yet. */
+  taskReward: boolean;
 }
 
 /** The single most useful thing to do now. The order below is the priority. */
@@ -45,6 +47,7 @@ export function nextStep(i: HintInput): Hint {
   if (!i.patrolled && beforeAttack && i.hordeBeatsDefense && i.hour >= 12) {
     return { text: "A horda de hoje passa da defesa. Faça a ronda antes das 20h.", tab: "night", urgent: true };
   }
+  if (i.taskReward) return { text: "Tarefa do dia pronta. Receba a recompensa.", tab: "work" };
   if (i.freeAttributePoints > 0) {
     return { text: `Você tem ${i.freeAttributePoints} ponto${i.freeAttributePoints > 1 ? "s" : ""} de atributo para usar.`, tab: "hero" };
   }

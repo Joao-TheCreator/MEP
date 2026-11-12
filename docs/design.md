@@ -561,3 +561,43 @@ os amigos faz a mesma melhoria com um quarto do esforço.
 
 O plano completo das próximas mecânicas (tarefas do dia, ronda que rende, papéis da
 noite, equipamento por espaço, obras novas, sítio vivo) está em `docs/ROADMAP.md`.
+
+## 17. Tarefas do dia e energia (proposta do João, em revisão)
+
+**Todo dia cada morador recebe três tarefas pequenas, que dão moedas e XP, para ter o
+que fazer mesmo jogando sozinho.** Código: `src/game/tasks.ts`; números em `DAILY_TASKS`
+e `ENERGY` (`config.ts`).
+
+### 17.1 Tarefas
+
+- **Três por dia** (dia de Brasília). A primeira é sempre **coletar** (qualquer um faz
+  sozinho); as outras duas são sorteadas entre fabricar, doar, vender, fazer a ronda e
+  melhorar ou refinar um item. "Doar" não aparece quando não há obra em andamento.
+- O sorteio é **fixo por pessoa e por dia** (semente = morador + data): recarregar a
+  página não muda as tarefas. O nível, a profissão e "tem obra?" são os do **começo do
+  dia**, para a tarefa não mudar no meio.
+
+| Tarefa | Meta |
+| --- | --- |
+| Coletar | 3 horas da produção base da profissão, +10% por nível (nível 1: 180 Grãos ou 90 Leite) |
+| Fabricar | `5 + nível` itens (máximo 30) |
+| Doar | `40 + 10 × nível` pontos para a obra |
+| Vender | `30 + 5 × nível` moedas na Vendinha |
+| Ronda | fazer a ronda da noite |
+| Equipamento | melhorar ou refinar um item |
+
+- **Recompensa de cada tarefa:** `30 + 5 × nível` moedas e `20 + 4 × nível` XP.
+- **Bônus por fazer as três:** `60 + 10 × nível` moedas.
+- No nível 1, um dia completo rende 175 moedas (3 × 35 + 70): quase uma melhoria Bronze
+  na Vendinha (218 moedas).
+- As recompensas são recebidas com um toque em **Receber recompensas** (aba Oficina).
+- O dia que passou não acumula: tarefa não feita some.
+
+### 17.2 Energia
+
+- 0 a **100**, recupera **10 por hora** (mais com Agilidade e com a Botina), calculada
+  pelo relógio como a produção.
+- **Cada ronda gasta 30.** Hoje só existe uma ronda por noite, então a energia quase
+  nunca falta; ela passa a limitar de verdade quando entrarem as expedições (rondas extras
+  por loot, roadmap fase 4): a barra cheia paga três.
+- Energia **não** limita coletar, fabricar, doar nem vender.

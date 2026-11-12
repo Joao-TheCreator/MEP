@@ -235,6 +235,8 @@ export const XP_PER_POINT = {
 export const ENERGY = {
   max: 100,
   regenPerHour: 10,
+  /** Energy spent by each night patrol (design §17). */
+  patrolCost: 30,
 } as const;
 
 export type AttributeKey = "strength" | "endurance" | "agility" | "craft" | "spirit";
@@ -515,4 +517,29 @@ export const MARKET = {
   /** Daily purchase limit per player, in points of value bought: base + perLevel × level. */
   dailyBuyBase: 150,
   dailyBuyPerLevel: 15,
+} as const;
+
+// ============================================================================
+// Daily tasks (design §17): three small goals a day, for coins and XP.
+// ============================================================================
+
+export const DAILY_TASKS = {
+  perDay: 3,
+  /** Reward of each task: base + perLevel × character level. */
+  coinsBase: 30,
+  coinsPerLevel: 5,
+  xpBase: 20,
+  xpPerLevel: 4,
+  /** Extra coins for finishing all of the day's tasks. */
+  bonusCoinsBase: 60,
+  bonusCoinsPerLevel: 10,
+  /** Targets. Collect = this many hours of the profession's base production (+10% per level). */
+  collectHours: 3,
+  craftBase: 5,
+  craftPerLevel: 1,
+  craftMax: 30,
+  donateBase: 40,
+  donatePerLevel: 10,
+  sellBase: 30,
+  sellPerLevel: 5,
 } as const;
