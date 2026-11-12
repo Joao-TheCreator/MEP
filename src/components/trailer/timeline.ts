@@ -7,7 +7,37 @@
 export const TRAILER_W = 1080;
 export const TRAILER_H = 1920;
 export const TRAILER_FPS = 30;
-export const TRAILER_DURATION = 44;
+/**
+ * v2 (phase 9): 12 s of new scenes are inserted at INSERT_AT (the five classes,
+ * the shop and daily tasks, the backpack). Everything that was after it is the
+ * v1 timeline shifted by INSERT_LEN; `legacyTime` maps back to v1 times, which
+ * the older scenes (BEATS, CAPTIONS, NIGHTS, FIRE_OUT) still use.
+ */
+export const INSERT_AT = 17.5;
+export const INSERT_LEN = 12;
+export const TRAILER_DURATION = 44 + INSERT_LEN;
+
+export function legacyTime(t: number) {
+  return t < INSERT_AT ? t : t - INSERT_LEN;
+}
+
+/** New scenes (v2 times). */
+export const NEW_BEATS = {
+  roles: [17.5, 23.5],
+  market: [23.5, 26.5],
+  backpack: [26.5, 29.5],
+} as const;
+
+/** Captions of the new scenes (v2 times). */
+export const NEW_CAPTIONS: { from: number; to: number; text: string; y?: number; size?: number; color?: string }[] = [
+  { from: 17.8, to: 20.4, text: "Escolha seu papel", y: 250, size: 96 },
+  { from: 20.6, to: 23.3, text: "Cinco classes, um time", y: 250, size: 96 },
+  { from: 23.7, to: 26.4, text: "Venda, compre, cumpra as tarefas", y: 250, size: 80 },
+  { from: 26.7, to: 29.3, text: "Ache itens na ronda", y: 250, size: 96 },
+];
+
+/** Legacy (v1) duration: the beats below use v1 times. */
+export const LEGACY_DURATION = 44;
 
 export const BEATS = {
   intro: [0, 4.1],

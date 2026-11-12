@@ -5,9 +5,10 @@
 import { writeFileSync } from "node:fs";
 
 const SR = 44100;
-const DUR = 44;
-const N = SR * DUR;
-const mix = new Float32Array(N);
+// v1 is composed at 44 s; v2 opens 12 s at 17.5 s for the new scenes (see below).
+let DUR = 44;
+let N = SR * DUR;
+let mix = new Float32Array(N);
 
 const midi = (m) => 440 * 2 ** ((m - 69) / 12);
 let seed = 1;
@@ -150,6 +151,54 @@ note(39.1, 4.2, midi(36), 0.09, "tri", { a: 0.2, r: 1.2 });
 [[76, 0], [79, 0.3], [81, 0.6], [79, 0.9], [84, 1.5]].forEach(([m, d]) =>
   note(39.5 + d, d === 1.5 ? 1.8 : 0.25, midi(m), 0.05, "square", { r: 0.5, vib: 0.005 }),
 );
+
+// ------------------------------------------------------------- v2: 12 s inserted at 17.5 (new scenes)
+// Same split as src/components/trailer/timeline.ts (INSERT_AT, INSERT_LEN).
+{
+  const AT = 17.5;
+  const LEN = 12;
+  const legacy = mix;
+  DUR = 44 + LEN;
+  N = SR * DUR;
+  mix = new Float32Array(N);
+  const cut = Math.floor(AT * SR);
+  mix.set(legacy.subarray(0, cut), 0);
+  mix.set(legacy.subarray(cut), cut + LEN * SR);
+
+  // roles 17.5–23.5: the day groove again (C Am F G), a chime for each class card
+  const R0 = AT;
+  for (let bar = 0; R0 + bar * 4 * B < AT + LEN - 0.3; bar++) {
+    const t0 = R0 + bar * 4 * B;
+    const ch = chords[bar % 4];
+    for (let b = 0; b < 4; b++) {
+      const t = t0 + b * B;
+      if (t > AT + LEN - 0.4) break;
+      note(t, B * 0.6, midi(ch[0] - 12), 0.1, "tri", { r: 0.05 });
+      note(t + B / 2, B * 0.3, midi(ch[b % 2 ? 2 : 1]), 0.022, "pulse", { r: 0.05 });
+      hit(t + B / 2, 0.04, 0.05, { lp: 0.9 });
+      if (b % 2 === 0) kick(t, 0.22);
+    }
+  }
+  [72, 76, 79, 83, 84].forEach((m, i) => {
+    const t = AT + 0.35 + i * 1.05;
+    note(t, 0.12, midi(m), 0.06, "square", { r: 0.25, vib: 0.004 });
+    note(t + 0.12, 0.2, midi(m + 7), 0.045, "pulse", { r: 0.3 });
+  });
+  // market 23.5–26.5: coins
+  for (let i = 0; i < 14; i++) {
+    const t = 23.5 + 0.4 + i * 0.12 + 0.45;
+    note(t, 0.04, midi(88), 0.035, "square", { a: 0.001, r: 0.05 });
+    note(t + 0.04, 0.08, midi(93), 0.035, "square", { a: 0.001, r: 0.12 });
+  }
+  // tasks checked
+  [0.8, 1.3, 1.8].forEach((d, i) => note(23.5 + d, 0.15, midi(84 + i * 3), 0.05, "tri", { r: 0.2 }));
+  // backpack 26.5–29.5: an item lands in each cell
+  [0.4, 0.75, 1.05, 1.35, 1.65, 1.95, 2.25].forEach((d, i) => {
+    const t = 26.5 + d;
+    hit(t, 0.06, 0.1, { lp: 0.7 });
+    note(t, 0.1, midi(76 + (i % 4) * 2), 0.05, "pulse", { r: 0.25 });
+  });
+}
 
 // ------------------------------------------------------------- echo, fade, normalize, write
 const D = Math.floor(0.21 * SR);

@@ -2,7 +2,7 @@
 //
 // Usage (with `npx next dev -p 3002` running):
 //   node scripts/render-trailer.mjs [outDir] [--url http://localhost:3002/trailer]
-//                                   [--from 0] [--to 44] [--stills 5,12,24]
+//                                   [--from 0] [--to 56] [--stills 5,12,24]
 // Needs Playwright (global install is fine) and ffmpeg. Music: scripts/trailer-music.mjs.
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
@@ -18,7 +18,7 @@ const outDir = resolve(args[0] && !args[0].startsWith("--") ? args[0] : "trailer
 const url = opt("url", "http://localhost:3002/trailer?capture=1");
 const FPS = 30;
 const from = Number(opt("from", 0));
-const to = Number(opt("to", 44));
+const to = Number(opt("to", 56));
 const stills = opt("stills", "");
 
 function loadPlaywright() {

@@ -84,3 +84,42 @@ export const FIRE_LOGS: SpriteDef = {
     "..ssss..ssss..",
   ],
 };
+
+// ---- v2 (phase 8–9): the five night classes and the new systems ----
+// Same pixels as src/prototype/night/sprites.ts (copied: the trailer branch is older).
+
+/** Guitar held by the "Violão" class. */
+export const GUITAR: SpriteDef = {
+  colors: { n: "#5a3a22", h: "#3a2414", b: "#c98a45", l: "#e3a861", o: "#2a1a10", s: "#f3e3c0" },
+  rows: ["..hh..", "..nn..", "..ns..", "..ns..", ".bnsb.", "blloll", "bbooob", "blllbb", ".bbbb."],
+};
+
+/** Ladle held by the "Cozinheira" class. */
+export const LADLE: SpriteDef = {
+  colors: { h: "#8a5a32", m: "#c7ccd6", d: "#8d94a3", s: "#f3d27a" },
+  rows: ["..h..", "..h..", "..h..", "..h..", "mm.mm", "msssm", "dmmmd", ".ddd."],
+};
+
+/** Lantern held by the "Lanterna" class. */
+export const LANTERN: SpriteDef = {
+  colors: { k: "#3b3b4a", y: "#ffe08a", w: "#fff6d0", o: "#f2a03d" },
+  rows: [".kk.", "k..k", "kkkk", "kywk", "kyyk", "kook", "kkkk"],
+};
+
+/** Music note (Violão's shot and "Acorde"). */
+export const NOTE: SpriteDef = {
+  colors: { n: "#ffd6f0", p: "#f08ac8" },
+  rows: ["..pp", "..pn", "..p.", "..p.", "ppp.", "pnp.", ".p.."],
+};
+
+/** Coin. */
+export const COIN_T: SpriteDef = {
+  colors: { o: C.goldDark, g: C.gold, l: "#f8e39a" },
+  rows: [".oooo.", "oggggo", "oglggo", "oglggo", "oggggo", ".oooo."],
+};
+
+/** Small heart (Marmita heal). */
+export const HEART: SpriteDef = {
+  colors: { r: "#8fe07a", l: "#d4f7c4" },
+  rows: [".r.r.", "rlrrr", "rrrrr", ".rrr.", "..r.."],
+};

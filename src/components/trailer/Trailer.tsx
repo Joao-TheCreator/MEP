@@ -11,9 +11,9 @@ import type { AvatarKey } from "@/art/avatars";
 import {
   ASSOMBRACAO, CAMPFIRE, MATTRESS, ORB, SOMBRA, SPIKE_BALL, TENT, VOLLEYBALL, VULTO,
 } from "@/prototype/night/sprites";
-import { ARMORS, FIRE_LOGS, SWORDS, TIERS } from "./sprites";
+import { ARMORS, COIN_T, FIRE_LOGS, GUITAR, HEART, LADLE, LANTERN, NOTE, SWORDS, TIERS } from "./sprites";
 import {
-  CAPTIONS, FIRE_OUT, NIGHTS, TRAILER_DURATION, TRAILER_FPS, TRAILER_H, TRAILER_W,
+  CAPTIONS, FIRE_OUT, INSERT_AT, INSERT_LEN, NEW_BEATS, NEW_CAPTIONS, NIGHTS, TRAILER_DURATION, TRAILER_FPS, TRAILER_H, TRAILER_W,
 } from "./timeline";
 
 /**
@@ -1019,7 +1019,7 @@ function drawCaptions(ctx: Ctx, t: number) {
   }
 }
 
-function drawFrame(ctx: Ctx, t: number, st: Stage) {
+function drawLegacyFrame(ctx: Ctx, t: number, st: Stage) {
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   ctx.globalAlpha = 1;
@@ -1055,6 +1055,243 @@ function drawFrame(ctx: Ctx, t: number, st: Stage) {
   );
   if (white > 0) {
     ctx.fillStyle = `rgba(255,248,232,${white})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  ctx.restore();
+}
+
+// ================================================================ v2: new scenes (phase 9)
+
+interface ClassCard {
+  avatar: AvatarKey;
+  name: string;
+  role: string;
+  effect: string;
+  weapon: SpriteDef;
+  wscale: number;
+  color: string;
+  fx: "spike" | "shield" | "notes" | "hearts" | "light";
+}
+const CLASS_CARDS: ClassCard[] = [
+  { avatar: "samuel", name: "Vôlei", role: "Atirador", effect: "Bate mais forte", weapon: VOLLEYBALL, wscale: 9, color: "#f0566a", fx: "spike" },
+  { avatar: "gabriel-campos", name: "Colchonete", role: "Tanque", effect: "Segura a horda", weapon: MATTRESS, wscale: 6, color: "#6f9ee6", fx: "shield" },
+  { avatar: "heloisa", name: "Violão", role: "Suporte", effect: "Anima o time", weapon: GUITAR, wscale: 7, color: "#f08ac8", fx: "notes" },
+  { avatar: "diego", name: "Cozinheira", role: "Cura", effect: "Cuida da fogueira", weapon: LADLE, wscale: 7, color: "#8fe07a", fx: "hearts" },
+  { avatar: "carol", name: "Lanterna", role: "Batedor", effect: "Enfraquece a horda", weapon: LANTERN, wscale: 8, color: "#ffe08a", fx: "light" },
+];
+const CARD_STEP = 1.05;
+
+function drawRoles(ctx: Ctx, t: number) {
+  const local = t - NEW_BEATS.roles[0];
+  vertical(ctx, "#1d1430", "#0b0814");
+  embers(ctx, t, 18, 0.35, 41);
+  CLASS_CARDS.forEach((c, i) => {
+    const at = 0.35 + i * CARD_STEP;
+    const a = ease(span(local, at, at + 0.35));
+    if (a <= 0) return;
+    const y = 470 + i * 270;
+    const active = local < at + CARD_STEP || i === CLASS_CARDS.length - 1;
+    const slide = (1 - a) * 160;
+    const dim = active ? 1 : 0.55;
+    // card
+    ctx.globalAlpha = a * (active ? 0.95 : 0.6);
+    ctx.fillStyle = "#2a1d3d";
+    ctx.fillRect(60 + slide, y - 110, 960, 220);
+    ctx.fillStyle = c.color;
+    ctx.fillRect(60 + slide, y - 110, 16, 220);
+    ctx.globalAlpha = 1;
+    const hx = 220 + slide;
+    const k = local - at; // time since the card appeared
+    if (active) radial(ctx, hx, y, 170, c.color, 0.18 + 0.1 * Math.sin(t * 6));
+    // the class's special, while its card is the newest
+    if (active && k > 0.2) {
+      const p = (k - 0.2) % 1.2;
+      if (c.fx === "notes") {
+        for (let n = 0; n < 4; n++) {
+          const q = (p + n * 0.3) % 1.2;
+          drawS(ctx, NOTE, hx - 120 + n * 70, y + 40 - q * 160, 7, { alpha: dim * (1 - q / 1.2) });
+        }
+      } else if (c.fx === "hearts") {
+        for (let n = 0; n < 3; n++) {
+          const q = (p + n * 0.4) % 1.2;
+          drawS(ctx, HEART, hx - 90 + n * 70, y + 20 - q * 150, 8, { alpha: dim * (1 - q / 1.2) });
+        }
+      } else if (c.fx === "light") {
+        ctx.globalAlpha = dim * (0.35 + 0.25 * Math.sin(t * 9));
+        ctx.fillStyle = "#ffe08a";
+        ctx.beginPath();
+        ctx.moveTo(hx + 70, y - 20);
+        ctx.lineTo(1000, y - 100);
+        ctx.lineTo(1000, y + 60);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      } else if (c.fx === "shield") {
+        ctx.globalAlpha = dim * (0.3 + 0.2 * Math.sin(t * 10));
+        ctx.strokeStyle = "#9cc8ff";
+        ctx.lineWidth = 16;
+        ctx.strokeRect(hx - 110, y - 100, 220, 200);
+        ctx.globalAlpha = 1;
+      } else {
+        const q = (p % 0.6) / 0.6;
+        drawS(ctx, SPIKE_BALL, hx + 60 + q * 640, y - 60 - Math.sin(q * Math.PI) * 60, 8, { alpha: dim });
+      }
+    }
+    const frame = WALKERS[c.avatar].right[Math.floor(t / 0.16) % 2 === 0 ? 0 : 1];
+    drawFeet(ctx, frame, hx, y + 90, 9, { alpha: a * dim, white: k < 0.15 ? 0.6 : 0 });
+    const { h } = size(c.weapon);
+    drawS(ctx, c.weapon, hx + 50, y + 40 - h * c.wscale, c.wscale, { alpha: a * dim });
+    const tx = 400 + slide;
+    text(ctx, c.name, tx, y - 40, 72, { color: C.paper, stroke: "#0b0814", alpha: a * dim, maxW: 580, align: "left" });
+    text(ctx, c.role, tx, y + 30, 52, { color: c.color, stroke: "#0b0814", alpha: a * dim, maxW: 580, align: "left" });
+    text(ctx, c.effect, tx, y + 85, 40, { color: "#d9cbe8", stroke: "#0b0814", alpha: a * dim, maxW: 580, align: "left" });
+  });
+}
+
+const TASKS = ["Coletar 3 vezes", "Fazer a ronda", "Doar na obra"];
+
+function drawMarket(ctx: Ctx, t: number) {
+  const local = t - NEW_BEATS.market[0];
+  vertical(ctx, "#f6dfb0", "#e7b877");
+  // stall: awning, counter, goods
+  const sx = 140;
+  const sy = 420;
+  for (let i = 0; i < 8; i++) {
+    ctx.fillStyle = i % 2 ? C.paper : C.wine;
+    ctx.fillRect(sx + i * 100, sy, 100, 110);
+  }
+  ctx.fillStyle = C.wineDark;
+  ctx.fillRect(sx, sy + 110, 800, 16);
+  ctx.fillStyle = C.woodDark;
+  ctx.fillRect(sx + 20, sy + 126, 24, 420);
+  ctx.fillRect(sx + 756, sy + 126, 24, 420);
+  ctx.fillStyle = C.wood;
+  ctx.fillRect(sx - 20, sy + 470, 840, 90);
+  ctx.fillStyle = C.woodLight;
+  ctx.fillRect(sx - 20, sy + 470, 840, 18);
+  text(ctx, "VENDINHA", 540, sy + 300, 100, { color: C.wineDark, stroke: C.paper });
+  // goods on the counter, sliding in
+  const goods = ["grain", "milk", "plank", "iron_bar", "cheese", "tool"] as const;
+  goods.forEach((g, i) => {
+    const k = ease(span(local, 0.1 + i * 0.12, 0.45 + i * 0.12));
+    const icon = RESOURCE_SPRITES[g as keyof typeof RESOURCE_SPRITES];
+    if (icon) drawFeet(ctx, icon, sx + 70 + i * 130 - (1 - k) * 300, sy + 470, 8, { alpha: k });
+  });
+  // coins raining into the counter + total
+  const coins = Math.round(ease(span(local, 0.4, 2.2)) * 480);
+  for (let i = 0; i < 14; i++) {
+    const at = 0.4 + i * 0.12;
+    const q = span(local, at, at + 0.5);
+    if (q <= 0 || q >= 1) continue;
+    drawS(ctx, COIN_T, 200 + ((i * 173) % 680), 330 + q * 640, 9, { alpha: 1 - q * 0.3 });
+  }
+  drawS(ctx, COIN_T, 330, 1150, 14);
+  text(ctx, `+${coins}`, 600, 1200, 110, { color: C.goldDark, stroke: C.paper });
+  // daily tasks being checked
+  ctx.fillStyle = "#fff6e2";
+  ctx.fillRect(160, 1340, 760, 380);
+  ctx.fillStyle = C.wine;
+  ctx.fillRect(160, 1340, 760, 70);
+  text(ctx, "Tarefas do dia", 540, 1378, 52, { color: C.paper });
+  TASKS.forEach((task, i) => {
+    const done = local >= 0.8 + i * 0.5;
+    const y = 1470 + i * 85;
+    ctx.fillStyle = done ? "#5aa04a" : "#c9b48a";
+    ctx.fillRect(210, y - 28, 56, 56);
+    if (done) text(ctx, "✓", 238, y + 2, 52, { color: C.paper });
+    text(ctx, task, 300, y, 48, { color: done ? "#5aa04a" : C.ink, stroke: "#fff6e2", maxW: 600, align: "left" });
+  });
+}
+
+const BAG_DROPS: { cell: number; tier: number; armor: boolean; at: number }[] = [
+  { cell: 0, tier: 0, armor: false, at: 0.4 },
+  { cell: 1, tier: 1, armor: true, at: 0.75 },
+  { cell: 2, tier: 0, armor: true, at: 1.05 },
+  { cell: 3, tier: 2, armor: false, at: 1.35 },
+  { cell: 4, tier: 1, armor: false, at: 1.65 },
+  { cell: 5, tier: 2, armor: true, at: 1.95 },
+  { cell: 6, tier: 3, armor: false, at: 2.25 },
+];
+
+function drawBackpack(ctx: Ctx, t: number) {
+  const local = t - NEW_BEATS.backpack[0];
+  vertical(ctx, "#163020", "#08130c");
+  embers(ctx, t, 14, 0.3, 77);
+  const cols = 4;
+  const cell = 200;
+  const gx = 540 - (cols * cell) / 2;
+  const gy = 560;
+  const found = BAG_DROPS.filter((d) => local >= d.at).length;
+  text(ctx, `Mochila ${found} / 48`, 540, gy - 70, 60, { color: C.gold, stroke: "#08130c" });
+  for (let i = 0; i < 12; i++) {
+    const x = gx + (i % cols) * cell;
+    const y = gy + Math.floor(i / cols) * cell;
+    ctx.fillStyle = "#2d4a35";
+    ctx.fillRect(x + 10, y + 10, cell - 20, cell - 20);
+    ctx.fillStyle = "#1a2e21";
+    ctx.fillRect(x + 22, y + 22, cell - 44, cell - 44);
+  }
+  for (const d of BAG_DROPS) {
+    const k = span(local, d.at - 0.3, d.at);
+    if (k <= 0) continue;
+    const x = gx + (d.cell % cols) * cell + cell / 2;
+    const y = gy + Math.floor(d.cell / cols) * cell + cell / 2;
+    const fall = (1 - ease(k)) * 300;
+    const tc = TIERS[d.tier];
+    const flash = local >= d.at ? 1 - span(local, d.at, d.at + 0.3) : 0;
+    ctx.fillStyle = tc.b;
+    ctx.globalAlpha = k;
+    ctx.fillRect(x - cell / 2 + 10, y - cell / 2 + 10, cell - 20, 10);
+    ctx.globalAlpha = 1;
+    const sp = d.armor ? ARMORS[d.tier] : SWORDS[d.tier];
+    const sc = d.armor ? 9 : 8;
+    const { w, h } = size(sp);
+    drawS(ctx, sp, x - (w * sc) / 2, y - (h * sc) / 2 - fall, sc, { alpha: k, white: flash * 0.8 });
+    if (flash > 0) radial(ctx, x, y, 160, tc.l, 0.4 * flash);
+  }
+  // equip or dismantle
+  const e = span(local, 2.4, 2.8);
+  text(ctx, "Equipe o melhor", 540, 1520, 72, { color: "#8fe07a", stroke: "#08130c", alpha: e });
+  text(ctx, "ou desmonte em materiais", 540, 1610, 56, { color: C.paper, stroke: "#08130c", alpha: e });
+}
+
+function drawNewCaptions(ctx: Ctx, t: number) {
+  for (const c of NEW_CAPTIONS) {
+    const a = win(t, c.from, c.to, 0.3);
+    if (a <= 0) continue;
+    const rise = (1 - ease(span(t, c.from, c.from + 0.35))) * 24;
+    text(ctx, c.text, 540, (c.y ?? 1640) + rise, c.size ?? 84, { color: c.color, alpha: a, maxW: 960, stroke: "#1a0c14" });
+  }
+}
+
+/** v2 master: v1 up to INSERT_AT, the new scenes, then v1 shifted (timeline.ts). */
+function drawFrame(ctx: Ctx, t: number, st: Stage) {
+  const end = INSERT_AT + INSERT_LEN;
+  if (t < INSERT_AT) return drawLegacyFrame(ctx, t, st);
+  if (t >= end) return drawLegacyFrame(ctx, t - INSERT_LEN, st);
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = "source-over";
+  if (t < NEW_BEATS.market[0]) drawRoles(ctx, t);
+  else if (t < NEW_BEATS.backpack[0]) drawMarket(ctx, t);
+  else drawBackpack(ctx, t);
+  drawNewCaptions(ctx, t);
+  // fade in from the skills' black, cut flashes between scenes, fade out to the sunset
+  const black = Math.max(
+    t < INSERT_AT + 0.5 ? 1 - span(t, INSERT_AT, INSERT_AT + 0.5) : 0,
+    t >= end - 0.4 ? span(t, end - 0.4, end) : 0,
+  );
+  if (black > 0) {
+    ctx.fillStyle = `rgba(0,0,0,${black})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  const cut = Math.max(
+    t >= NEW_BEATS.market[0] && t < NEW_BEATS.market[0] + 0.2 ? 1 - span(t, NEW_BEATS.market[0], NEW_BEATS.market[0] + 0.2) : 0,
+    t >= NEW_BEATS.backpack[0] && t < NEW_BEATS.backpack[0] + 0.2 ? 1 - span(t, NEW_BEATS.backpack[0], NEW_BEATS.backpack[0] + 0.2) : 0,
+  );
+  if (cut > 0) {
+    ctx.fillStyle = `rgba(255,248,232,${cut * 0.8})`;
     ctx.fillRect(0, 0, W, H);
   }
   ctx.restore();
