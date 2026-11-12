@@ -1,11 +1,11 @@
 // Development only: creates a demo farm with the whole group so every screen
-// has something to show, and prints a one-click login link.
+// has something to show. Each demo person logs in with the password "<avatar-key>123".
 //
 //   npm run db:seed            (uses DATABASE_URL from the environment / .env.local)
 //
 // Re-running it resets the demo farm (invite code DEMO01). It refuses to run
 // against a non-local database unless SEED_FORCE=1.
-import { createHash, randomBytes } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import postgres from "postgres";
 
@@ -20,9 +20,10 @@ if (!["localhost", "127.0.0.1", "::1"].includes(host) && process.env.SEED_FORCE 
   process.exit(1);
 }
 
-const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
-const LOGIN_AS = process.env.SEED_LOGIN ?? "joao-pedro";
-const hash = (t) => createHash("sha256").update(t).digest("hex");
+// Same as passwordLookup/authSecret in src/server/password.ts (keep in sync).
+const SECRET = process.env.AUTH_SECRET?.length >= 16 ? process.env.AUTH_SECRET : "dev-only-secret-change-me";
+const lookup = (password) => createHmac("sha256", SECRET).update(password.normalize("NFC")).digest("hex");
+const demoPassword = (key) => `${key}123`;
 
 // People and resource points live in seed-data.json; src/game/seed-data.test.ts
 // checks them against AVATARS (src/art/avatars.ts) and RESOURCES (src/game/config.ts).
@@ -30,6 +31,14 @@ const DATA = JSON.parse(readFileSync(new URL("./seed-data.json", import.meta.url
 const PEOPLE = DATA.people.map((p) => [p.key, p.name]);
 const POINTS = DATA.points;
 const PROFESSIONS = ["carpenter", "farmer", "rancher", "blacksmith"];
+// Some variety for the hero and night screens (design §15): XP and gear kept from "earlier seasons".
+const XP = [120, 900, 2400, 400, 5200, 60, 1500, 3100];
+const GEAR = [
+  {},
+  { weapon: { tier: "bronze", refine: 0 } },
+  { weapon: { tier: "iron", refine: 2 }, body: { tier: "bronze", refine: 0 } },
+  { weapon: { tier: "silver", refine: 1 }, body: { tier: "iron", refine: 0 }, tool: { tier: "bronze", refine: 0 } },
+];
 const STARTER = {
   farmer: { grain: 240, feed: 12 },
   rancher: { milk: 120, cheese: 8 },
@@ -39,7 +48,7 @@ const STARTER = {
 
 const sql = postgres(url, { max: 1, onnotice: () => {} });
 try {
-  const link = await sql.begin(async (tx) => {
+  await sql.begin(async (tx) => {
     await tx`DELETE FROM farms WHERE invite_code = 'DEMO01'`;
     await tx`DELETE FROM users WHERE email LIKE '%@demo.local'`;
     const [farm] = await tx`
@@ -48,14 +57,20 @@ try {
     for (let i = 0; i < PEOPLE.length; i++) {
       const [key, name] = PEOPLE[i];
       const profession = PROFESSIONS[i % PROFESSIONS.length];
-      const [user] = await tx`INSERT INTO users (email) VALUES (${key + "@demo.local"}) RETURNING id`;
+      const [user] = await tx`
+        INSERT INTO users (email, password_lookup) VALUES (${key + "@demo.local"}, ${lookup(demoPassword(key))})
+        RETURNING id`;
       const hoursAgo = 1 + (i * 37) % 9; // varied pending production, some storages full
       const [player] = await tx`
-        INSERT INTO players (user_id, farm_id, display_name, avatar, profession, workshop_level, last_collected_at)
+        INSERT INTO players (user_id, farm_id, display_name, avatar, profession, workshop_level, last_collected_at,
+                             xp, gear, night_class)
         VALUES (${user.id}, ${farm.id}, ${name}, ${key}, ${profession}, ${1 + (i % 3)},
-                now() - make_interval(hours => ${hoursAgo}))
+                now() - make_interval(hours => ${hoursAgo}),
+                ${XP[i % XP.length]}, ${tx.json(GEAR[i % GEAR.length])}, ${i % 2 ? "mattress" : "volley"})
         RETURNING id`;
-      for (const [resource, qty] of Object.entries(STARTER[profession])) {
+      // everyone gets some planks, bars and tools too, to try the gear upgrades
+      const bag = { ...STARTER[profession], plank: (STARTER[profession].plank ?? 0) + 25, iron_bar: (STARTER[profession].iron_bar ?? 0) + 12, tool: (STARTER[profession].tool ?? 0) + 2 };
+      for (const [resource, qty] of Object.entries(bag)) {
         await tx`INSERT INTO inventory (player_id, resource, qty) VALUES (${player.id}, ${resource}, ${qty})`;
       }
       // a few donations this week toward the well, so the ranking has movement
@@ -71,17 +86,11 @@ try {
           ON CONFLICT (farm_id, resource) DO UPDATE SET qty = farm_building_progress.qty + EXCLUDED.qty`;
       }
     }
-
-    const token = randomBytes(32).toString("base64url");
-    await tx`
-      INSERT INTO login_tokens (token_hash, email, expires_at)
-      VALUES (${hash(token)}, ${LOGIN_AS + "@demo.local"}, now() + interval '7 days')`;
-    return `${APP_URL}/auth/verify?token=${token}`;
   });
 
   console.log(`Demo farm ready: ${PEOPLE.length} moradores, invite code DEMO01.`);
-  console.log(`Login as ${LOGIN_AS} (valid 7 days, single use):\n${link}`);
-  console.log(`Other people: SEED_LOGIN=<avatar-key> npm run db:seed`);
+  console.log("Log in at http://localhost:3000/login with any of these passwords:");
+  console.log(PEOPLE.map(([key, name]) => `  ${name.padEnd(15)} ${demoPassword(key)}`).join("\n"));
 } finally {
   await sql.end();
 }

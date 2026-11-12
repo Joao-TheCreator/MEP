@@ -158,6 +158,9 @@ export const BUILDINGS: Building[] = [
   },
 ];
 
+/** Building costs above are for this many active members; bigger farms pay proportionally (#4). */
+export const BUILDING_SCALE = { referenceMembers: 5 } as const;
+
 export const MAX_FARM_LEVEL = BUILDINGS.length + 1;
 
 /** Ranking weeks start Monday 00:00 in this timezone. */
@@ -200,8 +203,9 @@ export const BONUS_CAPS: CharacterBonuses = {
   craftExtraPct: 50,
   donationProgressPct: 60,
   energyRegenPct: 100,
-  damagePct: 200,
-  healthPct: 150,
+  /** Proposal §15.5 (were 200 and 150): room for refined gear to keep mattering. */
+  damagePct: 600,
+  healthPct: 400,
   attackSpeedPct: 80,
   specialChargePct: 100,
   healPct: 150,
@@ -211,7 +215,8 @@ export const LEVEL = {
   maxLevel: 30,
   /** XP to go from level 1 to 2; each next level costs `xpGrowth` times more. */
   baseXp: 100,
-  xpGrowth: 1.2,
+  /** Proposal §15.5 (was 1.2): slower, so the level still matters when the horde catches up. */
+  xpGrowth: 1.25,
   attributePointsPerLevel: 1,
   /** A talent tier opens at each of these levels. */
   talentLevels: [5, 10, 15, 20] as const,
@@ -433,13 +438,66 @@ export const SLOTS: Record<SlotKey, Slot> = {
 export const SLOT_KEYS = Object.keys(SLOTS) as SlotKey[];
 
 export const REFINE = {
-  maxLevel: 10,
-  /** Cost to refine from +r to +(r+1): ceil(value × (r + 1)) of each resource. */
+  /** Proposal (§15.5): no real ceiling, so gear keeps being worth working for. */
+  maxLevel: 99,
+  /** Cost to refine from +r to +(r+1): ceil(value × (r + 1) × costGrowth^r) of each resource. */
   costPerLevel: { iron_bar: 2, tool: 0.5 } as Bag,
+  /** Each refine level costs this many times more than the linear step (1 = linear). */
+  costGrowth: 1.18,
 } as const;
 
 export const BAG = {
   slotsPerPage: 24,
   /** Level needed to open each page of the backpack. */
   pageUnlockLevels: [1, 1, 15] as const,
+} as const;
+
+// ============================================================================
+// Night hordes and the wipe (design §15, proposal): every night the horde
+// attacks the campfire; it grows each night. If the fire goes out, the farm
+// is wiped and a new season starts; only the items (gear) are kept.
+// ============================================================================
+
+export const NIGHT = {
+  /** The horde attacks every night at this hour (RANKING_TIMEZONE). */
+  hour: 20,
+  /** Horde strength on night 1, per active member of the farm. */
+  baseHordePerMember: 14,
+  /** Each night the horde is this many times stronger. */
+  growthPerNight: 1.1,
+  /** Members count as active if they collected in the last this-many hours. */
+  activeWindowHours: 72,
+  /** The horde never scales below this many members (small groups). */
+  minMembersForHorde: 4,
+} as const;
+
+/** A resident's strength at night (design §15.2). */
+export const COMBAT = {
+  /** Power of a level-1 resident with no gear. */
+  basePower: 10,
+  /** Extra power per character level above 1. */
+  powerPerLevel: 1,
+  /** Multiplier for those who played the night patrol (ronda) before the attack. */
+  patrolMultiplier: 1.5,
+  /** Multiplier for those who did not: their gear still helps, asleep in the tent. */
+  restingMultiplier: 0.5,
+  /** Each farm level adds this % to everyone's night power (walls, light, people). */
+  farmDefensePctPerLevel: 10,
+} as const;
+
+/** The campfire is the farm's life bar (design §15.3). */
+export const FIRE = {
+  /** Max fire HP per active member on a level-1 farm. */
+  hpPerMember: 30,
+  /** Each farm level adds this % to the max fire HP. */
+  hpPctPerFarmLevel: 25,
+  /** % of max HP the fire gets back every day (before the night). */
+  regenPctPerDay: 35,
+} as const;
+
+/** Rewards for those who played the patrol on a night the farm survived. */
+export const NIGHT_REWARDS = {
+  /** XP = base + perNight × night number. */
+  xpBase: 30,
+  xpPerNight: 12,
 } as const;

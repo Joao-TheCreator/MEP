@@ -2,15 +2,27 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { z } from "zod";
 import { AVATAR_KEYS } from "@/art/avatars";
-import { PROFESSION_KEYS, PROFESSIONS, RECIPE_KEYS, RESOURCE_KEYS, RESOURCES } from "@/game/config";
-import { consumeLoginToken, createLoginToken, currentUser, destroySession, normalizeEmail } from "@/server/auth";
-import { sendMagicLink } from "@/server/email";
+import {
+  ATTRIBUTES,
+  ATTRIBUTE_KEYS,
+  PROFESSION_KEYS,
+  PROFESSIONS,
+  RECIPE_KEYS,
+  RESOURCE_KEYS,
+  RESOURCES,
+  SLOTS,
+  SLOT_KEYS,
+  type AttributeKey,
+  type NightClassKey,
+  type SlotKey,
+} from "@/game/config";
+import { currentUser, destroySession, loginWithPassword, signupWithPassword } from "@/server/auth";
+import { passwordProblem } from "@/server/password";
 import * as game from "@/server/game";
 
-export type ActionResult = { ok: boolean; message: string; devLink?: string };
+export type ActionResult = { ok: boolean; message: string };
 
 async function requireUser() {
   const user = await currentUser();
@@ -36,30 +48,29 @@ const qty = z.coerce.number().int().min(1).max(1_000_000);
 
 // ---------------- auth ----------------
 
-export async function requestLogin(_: ActionResult | null, form: FormData): Promise<ActionResult> {
-  const parsed = z.string().email().max(200).safeParse(form.get("email"));
-  if (!parsed.success) return { ok: false, message: "Digite um e-mail válido." };
-  const email = normalizeEmail(parsed.data);
-  const token = await createLoginToken(email);
-  if (!token) return { ok: false, message: "Muitos pedidos. Espere alguns minutos e tente de novo." };
+const passwordField = z.string().max(200);
 
-  const h = await headers();
-  const base = process.env.APP_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
-  const link = `${base}/auth/verify?token=${token}`;
-  try {
-    await sendMagicLink(email, link);
-  } catch (e) {
-    console.error(e);
-    return { ok: false, message: "Não conseguimos enviar o e-mail agora." };
-  }
-  const devLink = !process.env.RESEND_API_KEY && process.env.NODE_ENV !== "production" ? link : undefined;
-  return { ok: true, message: "Pronto! Confira seu e-mail e toque no link para entrar.", devLink };
+export async function login(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const password = passwordField.safeParse(form.get("password"));
+  if (!password.success || !password.data) return { ok: false, message: "Digite sua senha." };
+  const outcome = await loginWithPassword(password.data);
+  if (outcome === "throttled") return { ok: false, message: "Muitas tentativas. Espere alguns minutos e tente de novo." };
+  if (outcome === "wrong") return { ok: false, message: "Senha não encontrada. Confira ou crie seu acesso." };
+  redirect("/");
 }
 
-export async function verifyLogin(form: FormData) {
-  const token = z.string().min(20).max(100).safeParse(form.get("token"));
-  if (!token.success || !(await consumeLoginToken(token.data))) redirect("/auth/verify?error=1");
-  redirect("/");
+export async function signup(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const password = passwordField.safeParse(form.get("password"));
+  const confirm = form.get("confirm");
+  if (!password.success) return { ok: false, message: "Digite uma senha." };
+  const problem = passwordProblem(password.data);
+  if (problem) return { ok: false, message: problem };
+  if (confirm !== password.data) return { ok: false, message: "As duas senhas estão diferentes." };
+  const outcome = await signupWithPassword(password.data);
+  if (outcome === "throttled") return { ok: false, message: "Muitas tentativas. Espere alguns minutos e tente de novo." };
+  // Same answer as an easy password: don't confirm that someone else uses it.
+  if (outcome === "taken") return { ok: false, message: "Essa senha não pode ser usada. Escolha outra." };
+  redirect("/onboarding");
 }
 
 export async function logout() {
@@ -170,5 +181,74 @@ export async function sendAction(toPlayerId: string, resource: string, amount: n
     const n = qty.parse(amount);
     await game.transfer(user.id, to, key, n);
     return `Enviado: ${n} ${RESOURCES[key].name}.`;
+  });
+}
+
+// ---------------- night & character (design §11, §12, §15) ----------------
+
+const slotKey = z.enum(SLOT_KEYS as [string, ...string[]]);
+const attributeKey = z.enum(ATTRIBUTE_KEYS as [string, ...string[]]);
+const nightClass = z.enum(["volley", "mattress"]);
+
+export async function patrolAction(): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = await game.patrol(user.id);
+    return `Ronda feita! Você defende a noite ${r.night} com força total.`;
+  });
+}
+
+export async function upgradeGearAction(slot: string): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = await game.upgradeGear(user.id, slotKey.parse(slot) as SlotKey);
+    return `${SLOTS[slot as SlotKey].label} agora é ${r.tier}!`;
+  });
+}
+
+export async function refineGearAction(slot: string): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = await game.refineGear(user.id, slotKey.parse(slot) as SlotKey);
+    return `${SLOTS[slot as SlotKey].label} refinado para +${r.refine}.`;
+  });
+}
+
+export async function attributeAction(key: string): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const k = attributeKey.parse(key) as AttributeKey;
+    await game.addAttributePoint(user.id, k);
+    return `+1 em ${ATTRIBUTES[k].name}.`;
+  });
+}
+
+export async function talentAction(tier: number, option: number): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const t = z.number().int().min(0).max(3).parse(tier);
+    const o = z.union([z.literal(0), z.literal(1)]).parse(option);
+    const name = await game.pickTalent(user.id, t, o);
+    return `Talento escolhido: ${name}.`;
+  });
+}
+
+export async function nightClassAction(cls: string): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const name = await game.setNightClass(user.id, nightClass.parse(cls) as NightClassKey);
+    return `Agora você é ${name} à noite.`;
+  });
+}
+
+/** Development only: makes tonight's attack happen now. */
+export async function devNightAction(): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = await game.devForceNight(user.id);
+    if (!r) return "Nenhuma noite para resolver.";
+    return r.wiped
+      ? `A fogueira apagou na noite ${r.night}. Nova temporada!`
+      : `Noite ${r.night}: horda ${r.horde} × defesa ${r.defense}. Fogueira: ${r.fireHp}.`;
   });
 }

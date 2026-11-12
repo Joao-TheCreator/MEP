@@ -51,13 +51,13 @@ nova que precisa de tela: Rodrigo entrega o dado + a ação, João faz a tela.
 
 ```bash
 npm run db:migrate
-npm run db:seed     # sítio de demonstração com os 20 moradores + link de login
+npm run db:seed     # sítio de demonstração com os 20 moradores
 npm run dev
 ```
 
-O `db:seed` recria o sítio de demonstração (código `DEMO01`) a cada execução e imprime
-um link de login de uso único. Para entrar como outra pessoa:
-`SEED_LOGIN=rodrigo npm run db:seed`.
+O `db:seed` recria o sítio de demonstração (código `DEMO01`) a cada execução. Para entrar,
+abra http://localhost:3000/login e digite a senha de quem você quer ser:
+`<chave-do-boneco>123` (ex.: `joao-pedro123`, `rodrigo123`).
 
 ## Regras de ouro
 

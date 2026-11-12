@@ -87,14 +87,15 @@ de `middleware.ts`). Consulte `node_modules/next/dist/docs/` antes de usar uma A
 ## Stack
 
 Next.js 16 (App Router, Turbopack) · React 19 · Postgres (`postgres`) · Zod · Vitest.
-Login por link mágico próprio (`src/server/auth.ts`), e-mail via Resend (opcional em dev).
+Login só por senha pessoal (`src/server/auth.ts` + `password.ts`): a senha identifica a pessoa,
+guardada como HMAC com `AUTH_SECRET`; sem e-mail.
 Deploy na Vercel. Variáveis em `.env.example`.
 
 ## Comandos
 
 - `npm run dev` · `npm test` · `npm run lint` · `npm run build`
 - `npm run db:migrate` (precisa de `DATABASE_URL`, lê `.env.local`)
-- `npm run db:seed` — sítio de demonstração com os 20 moradores + link de login (só banco local)
+- `npm run db:seed` — sítio de demonstração com os 20 moradores, senha `<chave>123` (só banco local)
 
 ## Pendências / próximos passos
 
