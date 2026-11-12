@@ -1,7 +1,9 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GROUND, LANDMARKS, MAP_H, MAP_W, farmItems, footY, type PlaceKey, type PlacedSprite } from "./FarmMap";
+import { FIRE_SPOT, GROUND, LANDMARKS, MAP_H, MAP_W, farmItems, footY, type PlaceKey, type PlacedSprite } from "./FarmMap";
+import { MAX_DARKNESS, darkness } from "./daylight";
+import { MAP_FIRE, MAP_FIRE_LOW } from "./workplaces";
 import { SpriteRects, spriteSize } from "./pixel";
 import { rng } from "./grid";
 import { WALKERS, WALKER_H, WALKER_W, type Direction } from "./walker";
@@ -37,6 +39,22 @@ const NODES: Record<string, [number, number]> = {
   templeW: [72, 86],
   eastLawn: [110, 46],
   annexFront: [132, 42],
+  // work places and the camp (roadmap 1b)
+  penGate: [30, 55],
+  eastYard: [129, 88],
+  sawFront: [139, 74],
+  forgeFront: [128, 108],
+  camp: [84, 105],
+};
+
+/** Where each kind of resident likes to be (a node of the walk graph). */
+export type Spot = "crops" | "pen" | "sawmill" | "forge" | "camp";
+const SPOT_NODE: Record<Spot, string> = {
+  crops: "field2",
+  pen: "penGate",
+  sawmill: "sawFront",
+  forge: "forgeFront",
+  camp: "camp",
 };
 
 const EDGES: [string, string][] = [
@@ -46,6 +64,8 @@ const EDGES: [string, string][] = [
   ["pathTop", "pathMid"], ["pathMid", "crossing"], ["crossing", "road"], ["road", "barnFront"],
   ["road", "houseA"], ["crossing", "templeW"], ["templeW", "templeDoor"],
   ["patioE", "eastLawn"], ["eastLawn", "annexFront"],
+  ["wellFront", "penGate"], ["templeDoor", "eastYard"], ["eastYard", "sawFront"], ["eastYard", "forgeFront"],
+  ["templeDoor", "camp"],
 ];
 
 const NEIGHBORS: Record<string, string[]> = {};
@@ -54,6 +74,25 @@ for (const [a, b] of EDGES) {
   (NEIGHBORS[b] ??= []).push(a);
 }
 const NODE_KEYS = Object.keys(NODES);
+
+/** Steps between every pair of nodes (the graph is small: plain BFS). */
+const STEPS: Record<string, Record<string, number>> = {};
+for (const start of NODE_KEYS) {
+  const d: Record<string, number> = { [start]: 0 };
+  const queue = [start];
+  while (queue.length) {
+    const n = queue.shift()!;
+    for (const m of NEIGHBORS[n] ?? []) {
+      if (d[m] === undefined) {
+        d[m] = d[n] + 1;
+        queue.push(m);
+      }
+    }
+  }
+  STEPS[start] = d;
+}
+/** How strongly a resident heads for their spot instead of wandering. */
+const HOMING = 0.75;
 
 const SCALE = 0.5; // map pixels per walker pixel
 const SPEED = 7; // map pixels per second
@@ -66,6 +105,8 @@ export interface Resident {
   name: string;
   avatar: string;
   subtitle?: string;
+  /** Where this resident tends to be: their work place by day, the camp at night. */
+  spot?: Spot;
 }
 
 interface Mover {
@@ -75,6 +116,24 @@ interface Mover {
   to: string;
   dir: Direction;
   pauseUntil: number;
+  /** Personal offset from the node, so people on the same spot don't stack. */
+  ox: number;
+  oy: number;
+  /** Their place in the ring around the campfire. */
+  seat: number;
+}
+
+/** Seats around the campfire: at the sides and behind it, never in front (so the fire stays visible). */
+function campSeat(i: number): [number, number] {
+  const a = Math.PI * (0.9 + 1.2 * ((i * 0.618) % 1));
+  const r = 7 + (i % 3) * 2.5;
+  return [FIRE_SPOT.x + Math.cos(a) * r * 1.3, FIRE_SPOT.y - 1 + Math.sin(a) * r * 0.6];
+}
+
+/** Where a mover is walking to: its node plus its own offset, or its seat by the fire. */
+function targetOf(m: Mover): [number, number] {
+  if (m.to === "camp") return campSeat(m.seat);
+  return [NODES[m.to][0] + m.ox, NODES[m.to][1] + m.oy];
 }
 
 function directionOf(dx: number, dy: number): Direction {
@@ -130,6 +189,9 @@ export function FarmScene({
   highlightId,
   zoom = 2,
   showGraph = false,
+  hour = 12,
+  fire,
+  onFire,
   selectedPlace,
   onSelectPlace,
   placeLabels,
@@ -149,6 +211,12 @@ export function FarmScene({
   zoom?: number;
   /** Debug: draw the walk graph. */
   showGraph?: boolean;
+  /** Hour of the day (Brasília, with fraction): the map darkens at night. */
+  hour?: number;
+  /** The campfire: how full it is (0–1). Omit to hide it. */
+  fire?: number;
+  /** Called when the player taps the campfire. */
+  onFire?: () => void;
 }) {
   const items = useMemo(() => farmItems(completed, building), [completed, building]);
   const reduced = useReducedMotion();
@@ -179,22 +247,35 @@ export function FarmScene({
     residents.forEach((r, i) => {
       const old = movers.current.get(r.id);
       if (old) return next.set(r.id, old);
-      const from = NODE_KEYS[(i * 5) % NODE_KEYS.length];
+      // start at their own spot (or spread over the graph when they have none)
+      const from = r.spot ? SPOT_NODE[r.spot] : NODE_KEYS[(i * 5) % NODE_KEYS.length];
+      const ox = ((i * 7) % 9) - 4;
+      const oy = ((i * 5) % 5) - 2;
       const [x, y] = NODES[from];
       const to = NEIGHBORS[from][Math.floor(rand() * NEIGHBORS[from].length)];
       next.set(r.id, {
-        x: x + ((i % 3) - 1) * 2,
-        y,
+        ...(from === "camp" ? { x: campSeat(i)[0], y: campSeat(i)[1] } : { x: x + ox, y: y + oy }),
+        seat: i,
         from,
         to,
         dir: "down",
         pauseUntil: performance.now() + rand() * 4000,
+        ox,
+        oy,
       });
     });
     movers.current = next;
     setTick((t) => t + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seated]);
+
+  // where each resident is heading (read by the movement loop)
+  const spots = useRef<Map<string, string>>(new Map());
+  useEffect(() => {
+    const next = new Map<string, string>();
+    for (const r of residents) if (r.spot) next.set(r.id, SPOT_NODE[r.spot]);
+    spots.current = next;
+  }, [residents]);
 
   // movement loop
   useEffect(() => {
@@ -205,9 +286,9 @@ export function FarmScene({
       const t = performance.now();
       const dt = Math.min(0.25, (t - last) / 1000);
       last = t;
-      for (const m of movers.current.values()) {
+      for (const [id, m] of movers.current) {
         if (t < m.pauseUntil) continue;
-        const [tx, ty] = NODES[m.to];
+        const [tx, ty] = targetOf(m);
         const dx = tx - m.x;
         const dy = ty - m.y;
         const dist = Math.hypot(dx, dy);
@@ -215,13 +296,25 @@ export function FarmScene({
         if (dist <= step) {
           m.x = tx;
           m.y = ty;
-          const options = NEIGHBORS[m.to].filter((n) => n !== m.from);
-          const pool = options.length ? options : NEIGHBORS[m.to];
-          m.from = m.to;
-          m.to = pool[Math.floor(rand() * pool.length)];
-          if (rand() < 0.45) {
-            m.pauseUntil = t + 1200 + rand() * 4000;
-            m.dir = rand() < 0.6 ? "down" : m.dir;
+          const here = m.to;
+          const home = spots.current.get(id);
+          const options = NEIGHBORS[here].filter((n) => n !== m.from);
+          const pool = options.length ? options : NEIGHBORS[here];
+          m.from = here;
+          if (home && here === home) {
+            // at their spot: stay a good while, then take a short stroll
+            m.to = pool[Math.floor(rand() * pool.length)];
+            m.pauseUntil = t + 5000 + rand() * 9000;
+            m.dir = "down";
+          } else if (home && rand() < HOMING) {
+            // head for their spot by the shortest way
+            m.to = NEIGHBORS[here].reduce((best, n) => (STEPS[n][home] < STEPS[best][home] ? n : best), NEIGHBORS[here][0]);
+          } else {
+            m.to = pool[Math.floor(rand() * pool.length)];
+            if (rand() < 0.45) {
+              m.pauseUntil = t + 1200 + rand() * 4000;
+              m.dir = rand() < 0.6 ? "down" : m.dir;
+            }
           }
         } else {
           m.x += (dx / dist) * step;
@@ -261,6 +354,12 @@ export function FarmScene({
     })
     .filter(Boolean) as { r: Resident; m: Mover; sprite: PlacedSprite["s"]; px: number; py: number; feet: number }[];
 
+  const dark = darkness(hour);
+  const fireFrames = fire !== undefined && fire < 0.35 ? MAP_FIRE_LOW : MAP_FIRE;
+  const fireSprite = fireFrames[reduced ? 0 : Math.floor(now / 220) % fireFrames.length];
+  // the glow breathes a little, and shrinks with the fire
+  const glow = (fire === undefined ? 0 : 10 + 14 * fire) + (reduced ? 0 : Math.sin(now / 300) * 0.8);
+
   type Layer = { feet: number; key: string; node: React.ReactNode };
   const layers: Layer[] = [
     ...items.map((it, i) => ({
@@ -289,6 +388,25 @@ export function FarmScene({
         </g>
       ),
     })),
+    ...(fire === undefined
+      ? []
+      : [{
+          feet: FIRE_SPOT.y,
+          key: "fire",
+          node: (
+            <g
+              key="fire"
+              data-pick="fire"
+              transform={`translate(${FIRE_SPOT.x - (fireSprite.rows[0].length * SCALE) / 2} ${FIRE_SPOT.y - fireSprite.rows.length * SCALE}) scale(${SCALE})`}
+              onClick={onFire}
+              style={{ cursor: onFire ? "pointer" : undefined }}
+              role="button"
+              aria-label="Fogueira"
+            >
+              <SpriteRects sprite={fireSprite} />
+            </g>
+          ),
+        }]),
   ].sort((a, b) => a.feet - b.feet);
 
   const sel = selected ? people.find((p) => p.r.id === selected) : null;
@@ -311,8 +429,26 @@ export function FarmScene({
             pickPlace(null);
           }}
         >
+          <defs>
+            <radialGradient id="farm-fire-glow">
+              <stop offset="0" stopColor="#ffb35c" stopOpacity={0.6} />
+              <stop offset="1" stopColor="#ffb35c" stopOpacity={0} />
+            </radialGradient>
+          </defs>
           <Ground />
           {layers.map((l) => l.node)}
+          {dark > 0 && <rect width={MAP_W} height={MAP_H} fill="#0b1030" opacity={dark} pointerEvents="none" />}
+          {fire !== undefined && fire > 0 && (
+            <circle
+              cx={FIRE_SPOT.x}
+              cy={FIRE_SPOT.y - 3}
+              r={glow}
+              fill="url(#farm-fire-glow)"
+              opacity={0.35 + (dark / MAX_DARKNESS) * 0.65}
+              style={{ mixBlendMode: "screen" }}
+              pointerEvents="none"
+            />
+          )}
           {showGraph && (
             <g opacity={0.8}>
               {EDGES.map(([a, b]) => (

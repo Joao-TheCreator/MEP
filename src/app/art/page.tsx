@@ -9,6 +9,8 @@ import {
   BARN, CONSTRUCTION, HOUSE, LOGO, MILL, PALM, POOL, RESOURCE_SPRITES, TREE, TREE_DARK, WELL, templeSprite,
 } from "@/art/sprites";
 
+const SPOTS = ["crops", "pen", "sawmill", "forge"] as const;
+
 export const metadata = { title: "Arte — Sítio Dae Han" };
 
 /** Style guide: every sprite in one place (useful when two people draw). */
@@ -65,8 +67,21 @@ export default function ArtPage() {
         <FarmScene
           completed={["well"]}
           building="barn"
-          residents={AVATAR_KEYS.map((k) => ({ id: k, name: AVATARS[k].name, avatar: k }))}
+          residents={AVATAR_KEYS.map((k, i) => ({ id: k, name: AVATARS[k].name, avatar: k, spot: SPOTS[i % SPOTS.length] }))}
           showGraph={process.env.NODE_ENV !== "production"}
+          fire={1}
+        />
+      </section>
+      <section className="panel">
+        <h2>Sítio vivo — de noite</h2>
+        <p className="small muted">Às 21h: o mapa escurece, a fogueira ilumina e quem fez a ronda fica em volta dela. Fogueira fraca (30%).</p>
+      </section>
+      <section className="panel map-frame">
+        <FarmScene
+          completed={["well", "barn", "mill"]}
+          residents={AVATAR_KEYS.map((k, i) => ({ id: k, name: AVATARS[k].name, avatar: k, spot: i % 2 ? "camp" : SPOTS[i % SPOTS.length] }))}
+          hour={21}
+          fire={0.3}
         />
       </section>
       <section className="panel map-frame"><FarmMap completed={[]} building="well" /></section>

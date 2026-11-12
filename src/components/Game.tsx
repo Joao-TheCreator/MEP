@@ -52,7 +52,7 @@ export function Game({ state }: { state: GameState }) {
       setToast(await fn());
     });
 
-  const ctx: ScreenProps = { state, now, act, pending };
+  const ctx: ScreenProps = { state, now, act, pending, openNight: () => setTab("night") };
 
   return (
     <>

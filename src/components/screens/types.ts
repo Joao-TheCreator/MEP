@@ -9,4 +9,6 @@ export interface ScreenProps {
   /** Runs a server action and shows its result as a toast. */
   act: (fn: () => Promise<ActionResult>) => void;
   pending: boolean;
+  /** Opens the Night tab (the campfire on the map uses it). */
+  openNight: () => void;
 }
