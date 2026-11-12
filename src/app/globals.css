@@ -354,3 +354,95 @@ body:has(.night) { background: #141a2e; }
 .team-role.empty b { color: var(--flame); }
 .team-missing { color: var(--flame); }
 .class-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+/* ==== Landscape phone (issue #22, roadmap 7a) ====
+   Same markup both ways: standing up, .screen is transparent and everything is
+   as before; lying down, the tabs become a rail on the left, the top bar and
+   the hint share one line and each tab fills the rest of the screen. A desktop
+   window (wide and tall) keeps the standing layout. */
+.screen { display: contents; }
+
+@media (orientation: landscape) and (max-height: 540px) {
+  :root { --rail: calc(64px + env(safe-area-inset-left)); }
+  body { font-size: 19px; }
+  h2 { font-size: 18px; }
+
+  .tabs {
+    top: 0; bottom: 0; right: auto; width: var(--rail);
+    flex-direction: column; justify-content: stretch;
+    padding: 0 0 0 env(safe-area-inset-left);
+    box-shadow: var(--px) 0 0 var(--wood), calc(var(--px) * 2) 0 0 var(--wood-deep);
+  }
+  .tabs button { flex: 1; max-width: none; font-size: 11px; padding: 2px; gap: 1px; justify-content: center; }
+
+  .shell, .shell.full {
+    max-width: none; height: 100dvh; margin: 0 0 0 var(--rail);
+    padding: 6px calc(8px + env(safe-area-inset-right)) 6px 10px;
+    display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 6px 10px;
+  }
+  .topbar { padding: 0; gap: 8px; }
+  .topbar h1 { font-size: 17px; max-width: 150px; }
+  .topbar .lvl { font-size: 13px; padding: 3px 6px; }
+  .hint { margin: 0; align-self: center; font-size: 16px; padding: 5px 8px 6px; }
+  .shell.full .hint { margin: 0; }
+
+  /* every tab: fills the second row; panels flow in two columns and scroll inside */
+  .screen {
+    grid-column: 1 / -1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; align-content: start; gap: 10px 12px;
+    padding: 6px;
+  }
+  .screen > .panel { margin: 0; }
+  .screen > .stock-seg { grid-column: 1 / -1; margin: 0; }
+  .screen-rank > .panel { grid-column: 1 / -1; }
+  .screen-farm, .screen-hero, .screen:has(.night-arena) { display: block; overflow: hidden; padding: 0; }
+  .drawer .btn.big { font-size: 16px; padding: 8px; }
+
+  .toast { bottom: 10px; left: calc(50% + var(--rail) / 2); }
+  .pops { top: 48px; left: calc(50% + var(--rail) / 2); }
+
+  /* farm: map on the left, the drawer becomes a fixed side panel */
+  .farm-stage { margin: 0; height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 8px; box-shadow: none; background: none; }
+  .farm-stage .farm-scene { height: 100%; box-shadow: 0 0 0 var(--px) var(--wood-dark); }
+  .stage-top { right: 316px; }
+  .drawer { position: static; max-height: none; min-height: 0; margin: var(--px) calc(var(--px) * 2) var(--px) 0; }
+  .drawer .drawer-body, .drawer.open .drawer-body { display: block; flex: 1; min-height: 0; }
+  .drawer .caret { display: none; }
+  .drawer-handle { cursor: default; padding: 8px 12px; }
+  .drawer-handle .drawer-bar { display: none; }
+
+  /* patrol mini-game: arena as tall as the screen, controls beside it */
+  .screen .night { height: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 8px 10px; }
+  .screen .night .night-arena { grid-column: 1; grid-row: 1 / span 2; height: 100%; aspect-ratio: 96 / 120; max-width: none; margin: 0; }
+  .screen .night .night-arena svg { height: 100%; width: auto; }
+  .screen .night .night-hud { grid-column: 2; margin: 0; }
+  .screen .night .night-special, .screen .night .night-result { grid-column: 2; align-self: start; margin-top: 0; }
+}
+
+/* ---- Hero: the resident with the gear slots around, and a tabbed panel ---- */
+.hero-layout { display: flex; flex-direction: column; }
+.hero-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.hero-doll { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center; }
+.slots { display: flex; flex-direction: column; gap: 6px; }
+.doll { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.slot-btn { position: relative; display: flex; flex-direction: column; gap: 1px; text-align: left; font: inherit; color: var(--ink);
+  background: var(--paper-dark); border: 0; border-left: 5px solid var(--wood); padding: 4px 8px 5px; cursor: pointer; line-height: 1.05;
+  box-shadow: 0 0 0 2px var(--wood); }
+.slot-btn[aria-pressed="true"] { background: #fff6e2; box-shadow: 0 0 0 var(--px) var(--wine); }
+.slot-label { font-size: 15px; color: var(--ink-soft); }
+.slot-btn b { font-family: var(--font-display); font-weight: 500; font-size: 14px; }
+.slot-dot { position: absolute; top: 4px; right: 5px; width: 8px; height: 8px; background: var(--flame); box-shadow: 0 0 0 2px var(--paper); }
+.hero-tabs { margin-bottom: 8px; }
+.hero-tabs .btn { padding-left: 4px; padding-right: 4px; white-space: nowrap; }
+.attr-row { padding-bottom: 4px; border-bottom: 2px dashed var(--paper-dark); }
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .hero-layout { height: 100%; flex-direction: row; gap: 10px; padding: var(--px) calc(var(--px) * 2); }
+  .hero-layout > .panel { margin: 0; min-height: 0; padding: 10px; }
+  .hero-board { flex: 0 0 330px; display: flex; flex-direction: column; }
+  .hero-doll { flex: 1; min-height: 0; }
+  .hero-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .hero-panel-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+  .slot-btn { padding: 3px 6px 4px; }
+  .slot-label { font-size: 14px; }
+}

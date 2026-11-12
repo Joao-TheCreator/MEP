@@ -124,3 +124,23 @@ O mapa mostra o que está acontecendo no jogo:
 (madeira com lampião, ao norte do pátio), Cozinha (tijolo, telhado laranja e chaminé, a
 leste), Forja comunitária (pedra, com o fogo aceso, ao sul) e Cerca (ao sul da fogueira).
 Aparecem como canteiro de obra enquanto são construídas, como as três primeiras.
+
+## Deitado e em pé (issue #22, roadmap 7a)
+
+O jogo funciona dos dois jeitos, com a **mesma marcação**; só o CSS muda
+(`@media (orientation: landscape) and (max-height: 540px)` em `globals.css`). Uma janela
+de computador, larga e alta, continua com o layout em pé.
+
+| Parte | Em pé | Deitado (referência 844×390) |
+| --- | --- | --- |
+| Abas | Barra embaixo | Coluna fixa à esquerda (64 px, respeita o entalhe) |
+| Barra de cima e dica | Duas linhas | Uma linha só |
+| Sítio | Mapa cheio com gaveta embaixo | Mapa à esquerda, painel fixo de 300 px à direita |
+| Herói | Boneco com os 8 espaços em cima, painel embaixo | Boneco à esquerda, painel à direita, sem rolar a página |
+| Outras abas | Uma coluna | Duas colunas, rolando por dentro (ajuste fino na 7b) |
+| Ronda | Arena em cima, especial embaixo | Arena na altura da tela à esquerda, placar e especial à direita |
+
+**Herói:** o boneco fica no centro, com Cabeça, Corpo, Mãos e Pés à esquerda e Arma,
+Ferramenta, Broche e Pulseira à direita. Cada espaço mostra o tier na cor dele e o refino;
+um ponto vermelho avisa quando dá para melhorar. O painel tem as abas Item, Atributos,
+Talentos e Classe. A mochila da prévia do Rodrigo ainda não existe (roadmap 7c).
