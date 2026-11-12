@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BONUS_CAPS, LEVEL, MAX_ATTRIBUTE_POINTS, PROFESSION_KEYS, TALENTS, TIER_KEYS, TIERS } from "./config";
+import { BONUS_CAPS, LEVEL, MAX_ATTRIBUTE_POINTS, PROFESSION_KEYS, REFINE, TALENTS, TIER_KEYS, TIERS } from "./config";
 import {
   attributePointsEarned,
   bagPagesOpen,
@@ -22,17 +22,17 @@ import {
 } from "./character";
 
 describe("level & XP (design §11.1)", () => {
-  it("each level costs 20% more XP", () => {
+  it("each level costs 25% more XP (proposal §15.5)", () => {
     expect(xpToNext(1)).toBe(100);
-    expect(xpToNext(2)).toBe(120);
-    expect(xpToNext(10)).toBe(516);
+    expect(xpToNext(2)).toBe(125);
+    expect(xpToNext(10)).toBe(745);
     expect(xpToNext(LEVEL.maxLevel)).toBeNull();
   });
 
   it("converts total XP to level and progress", () => {
     expect(levelFromXp(0)).toEqual({ level: 1, xpIntoLevel: 0, xpForNext: 100 });
     expect(levelFromXp(99)).toEqual({ level: 1, xpIntoLevel: 99, xpForNext: 100 });
-    expect(levelFromXp(100)).toEqual({ level: 2, xpIntoLevel: 0, xpForNext: 120 });
+    expect(levelFromXp(100)).toEqual({ level: 2, xpIntoLevel: 0, xpForNext: 125 });
     expect(levelFromXp(totalXpForLevel(10) + 5).level).toBe(10);
     expect(levelFromXp(1e12)).toEqual({ level: LEVEL.maxLevel, xpIntoLevel: 0, xpForNext: null });
   });
@@ -105,11 +105,12 @@ describe("items, refine and slots (design §12)", () => {
     expect(itemValue({ slot: "hands", tier: "wood", refine: 4 })).toBe(1);
   });
 
-  it("refine goes up to +10; cost grows with the level", () => {
+  it("refine has no real ceiling; each level costs 18% more on top of the linear step (proposal §15.5)", () => {
     expect(refineCost(0)).toEqual({ iron_bar: 2, tool: 1 });
-    expect(refineCost(5)).toEqual({ iron_bar: 12, tool: 3 });
-    expect(refineCost(9)).toEqual({ iron_bar: 20, tool: 5 });
-    expect(refineCost(10)).toBeNull();
+    expect(refineCost(5)).toEqual({ iron_bar: 28, tool: 7 });
+    expect(refineCost(9)).toEqual({ iron_bar: 89, tool: 23 });
+    expect(refineCost(20)).toEqual({ iron_bar: 1151, tool: 288 });
+    expect(refineCost(REFINE.maxLevel)).toBeNull();
   });
 
   it("backpack page III opens at level 15", () => {

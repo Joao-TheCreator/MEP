@@ -279,7 +279,8 @@ economia nem a escala de custo das construções (#4).
 ### 11.1 Nível e experiência
 
 - Nível 1 a **30**. Ir do nível 1 ao 2 custa **100 XP**; cada nível seguinte custa
-  **20% mais** (nível 10 → 11: 516 XP).
+  **25% mais** (nível 10 → 11: 745 XP). Proposta §15.5; antes era 20%. Mais lento
+  para o nível ainda contar quando a horda alcança o grupo, e ele **zera no wipe**.
 - XP por ponto de valor movimentado: **doar 1**, **fabricar 0,5** (sobre os pontos do
   que saiu), **coletar 0,1**. **Enviar a um amigo não dá XP** (dois amigos poderiam
   ficar mandando um para o outro sem fim).
@@ -327,6 +328,8 @@ em `TALENTS` (`src/game/config.ts`). Exemplo, Agricultor:
 | Armazém | +360 min (6 h) |
 | Fabricar em dobro | 50% |
 | Doação rende na obra | +60% |
+| Dano (noite) | +600% (proposta §15.5; era +200%) |
+| Vida (noite) | +400% (proposta §15.5; era +150%) |
 
 ## 12. Equipamento
 
@@ -361,12 +364,21 @@ Agricultor não faz nada; serve para guardar caso ele troque de profissão, §2.
 | Diamante | 26 | 131 Tábuas, 53 Barras, 14 Ferramentas |
 | Brasa (lendária) | 34 | bloqueada: vai custar Brasas do grupo (#17) |
 
-### 12.3 Refino (+1 a +10)
+### 12.3 Refino (+1, +2, … sem teto prático)
 
-Cada item pode ser refinado até **+10**. Ir de +r para +(r+1) custa
-`2 × (r+1)` Barras de ferro e `⌈(r+1) ÷ 2⌉` Ferramentas (de +0 para +1: 2 Barras e
-1 Ferramenta; de +9 para +10: 20 Barras e 5 Ferramentas). Sem chance de falhar e
-sem perder o item: o jogo é para ser gostoso, não para frustrar.
+Proposta §15.5: o refino é o **ralo sem fim** da economia, o que faz o item guardado
+no wipe valer a pena. Ir de +r para +(r+1) custa
+`⌈2 × (r+1) × 1,18^r⌉` Barras de ferro e `⌈0,5 × (r+1) × 1,18^r⌉` Ferramentas:
+
+| De → para | Barras | Ferramentas |
+| --- | --- | --- |
+| +0 → +1 | 2 | 1 |
+| +5 → +6 | 28 | 7 |
+| +9 → +10 | 89 | 23 |
+| +20 → +21 | 1.151 | 288 |
+
+Limite técnico +99. Sem chance de falhar e sem perder o item: o jogo é para ser
+gostoso, não para frustrar.
 
 ### 12.4 Mochila e sugestão automática
 
@@ -412,3 +424,109 @@ Regras que protegem esse orçamento:
 - Nenhuma mecânica exige estar online numa hora certa (a Noite da Horda dá 48 h de
   prazo e cada um joga quando puder).
 - Avisos no celular só para o que importa (armazém cheio, obra pronta, horda marcada).
+
+## 15. Noites, hordas e o wipe (proposta do João, em revisão)
+
+**De dia o grupo produz e se equipa; toda noite a horda ataca a fogueira e fica mais
+forte; se a fogueira apagar, o sítio é wipado e começa uma nova temporada, e só os
+itens ficam.** Código: `src/game/night.ts` (regras) e `src/game/balance.ts`
+(simulador). Números em `NIGHT`, `COMBAT`, `FIRE` e `NIGHT_REWARDS` no `config.ts`.
+
+> Muda duas decisões anteriores e precisa do OK do Rodrigo:
+> - **#14:** a ronda continua **opcional para cada um**, mas quem não joga entra
+>   "dormindo na barraca" com metade da força. Ninguém é punido sozinho; o risco é do
+>   grupo.
+> - **#17 (A Queda):** troca "guarda metade do nível + Brasas" por **só os itens**.
+
+### 15.1 A noite
+
+- Toda noite às **20h** (horário de Brasília) a horda ataca. O servidor resolve as
+  noites atrasadas pelo relógio, como a produção offline: ninguém precisa estar online.
+- **Força da horda** = `14 × moradores ativos × 1,10^(noite − 1)`. Ativo = coletou nas
+  últimas 72 h; nunca menos de 4 (sítio pequeno não fica fácil demais).
+
+### 15.2 A defesa
+
+- **Força de cada morador** = `(10 + 1 × (nível − 1)) × (1 + dano%) × √(1 + vida%)`.
+  Dano vem da Arma, da Força e dos talentos; vida vem da Camiseta e da Resistência.
+- Quem **jogou a ronda** antes do ataque entra com **×1,5**; quem não jogou, com **×0,5**.
+- **Defesa do sítio** = soma de todos × `(1 + 10% × (nível do sítio − 1))`.
+
+### 15.3 A fogueira (a vida do sítio)
+
+- **Vida máxima** = `30 × moradores ativos × (1 + 25% × (nível do sítio − 1))`.
+- Toda noite a fogueira perde `força da horda − defesa` (se for positivo).
+- Todo dia ela recupera **35%** da vida máxima.
+- **Vida 0 = wipe.** A tela avisa antes: mostra a força da horda de hoje, a defesa
+  estimada e quantas noites a fogueira aguenta nesse ritmo.
+
+### 15.4 O wipe
+
+| Fica | Zera |
+| --- | --- |
+| Todos os itens (equipados e na mochila), com tier e refino | Nível do sítio e construções |
+| Ranking geral e histórico de temporadas | Recursos do estoque |
+| | Nível das oficinas |
+| | Nível, XP, atributos e talentos do personagem |
+| | Contador de noites (a horda volta à noite 1) |
+
+Cada temporada fica registrada ("1ª temporada: caiu na noite 28").
+
+**Recompensa da ronda:** quem jogou ganha `30 + 12 × noite` de XP se o sítio aguentou.
+
+### 15.5 Balanceamento (simulado)
+
+`npm run balance` simula temporadas inteiras com as regras reais (produção, XP,
+atributos, talentos, custos de oficina, equipamento e obras). Grupos de 20, com três
+perfis de jogador:
+
+| Perfil | Entra por dia | Joga a ronda |
+| --- | --- | --- |
+| Dedicado | 3× | 90% das noites |
+| Regular | 2× | 60% |
+| Casual | 1× | 25% |
+
+| Grupo | Composição | Cai na noite (temporada 1 → 2 → 3) |
+| --- | --- | --- |
+| Dedicado | 8 dedicados, 8 regulares, 4 casuais | 29 → 30 → 30 |
+| Típico | 4 dedicados, 8 regulares, 8 casuais | 28 → 29 → 29 |
+| Devagar | 6 regulares, 14 casuais | 26 → 27 → 27 |
+| Pequeno (5) | 2 dedicados, 2 regulares, 1 casual | 29 → 30 → 30 |
+
+O que o simulador mostrou e as mudanças que resultaram:
+
+1. **Com os números antigos, todo grupo caía na mesma noite e os itens guardados não
+   mudavam nada:** a arma de diamante saía no dia 4 e o sítio chegava ao nível máximo
+   no dia 2. Todo mundo batia nos tetos antes da horda chegar.
+2. **Obras escalam com os moradores ativos** (`BUILDING_SCALE`, custo listado vale
+   para 5; resolve parte do #4).
+3. **Refino sem teto** e mais caro a cada nível (§12.3): é o ralo da economia e o que
+   torna o item guardado valioso.
+4. **XP 25% por nível** (era 20%) e **tetos de dano/vida maiores** (§11.4).
+5. **A ronda pesa:** ×1,5 jogando, ×0,5 dormindo.
+
+Os testes em `src/game/balance.test.ts` travam as metas: a primeira semana é segura
+(fogueira nunca abaixo da metade nas noites 1–7), uma temporada dura **3 a 5 semanas**,
+grupo que joga mais vai mais longe, e os itens guardados nunca encurtam a temporada
+seguinte.
+
+**Limites honestos:** com custos exponenciais, produzir o dobro vira poucas noites a
+mais (é normal num idle). A diferença entre grupos é de **2 a 3 noites** e cada
+temporada empurra **+1 noite**. Se o grupo quiser que o wipe pese mais, as alavancas
+são: mais obras para subir o sítio (hoje só 3, o sítio chega ao nível 4 em uma semana)
+e um bônus pequeno por temporada.
+
+### 15.6 MVP do ciclo dia → noite → wipe
+
+O mínimo para o grupo jogar o ciclo inteiro:
+
+| # | O que | Quem |
+| --- | --- | --- |
+| 1 | Banco do personagem (XP, atributos, talentos, itens e mochila) e ações de equipar, melhorar e refinar (#20 já tem as regras) | Rodrigo |
+| 2 | Noites no servidor: temporada, noite, vida da fogueira, "jogou a ronda hoje", resolução pelo relógio e wipe numa transação | Rodrigo |
+| 3 | Fogueira na tela do Sítio: vida, horda de hoje × defesa, "aguenta N noites" | João |
+| 4 | Tela do Personagem (#22, na horizontal) com Equipar o melhor, atributos e talentos | João |
+| 5 | Ronda ligada: o protótipo da noite marca "joguei a ronda" no servidor (o resultado do minijogo ainda não conta) | João + Rodrigo |
+| 6 | Tela do wipe ("A fogueira apagou na noite 28") e histórico de temporadas | João |
+
+Fora do MVP: loot da noite, chefes, mistérios, Brasa (tier lendário), caixa do sítio.

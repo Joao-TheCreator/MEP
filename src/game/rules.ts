@@ -1,5 +1,6 @@
 import {
   BUILDINGS,
+  BUILDING_SCALE,
   FARM,
   PROFESSION_CHANGE,
   PROFESSION_KEYS,
@@ -175,4 +176,12 @@ export function professionChangeAvailableAt(lastChangedAt: Date | null, now: Dat
   if (!lastChangedAt) return null;
   const at = new Date(lastChangedAt.getTime() + PROFESSION_CHANGE.cooldownHours * 3_600_000);
   return at > now ? at : null;
+}
+
+/**
+ * Collective buildings cost more on bigger farms (#4): the listed cost is for
+ * BUILDING_SCALE.referenceMembers active members and grows linearly with them.
+ */
+export function buildingCostScale(activeMembers: number): number {
+  return Math.max(1, activeMembers / BUILDING_SCALE.referenceMembers);
 }
