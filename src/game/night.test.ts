@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { COMBAT, FIRE, NIGHT } from "./config";
-import { farmDefense, fireAfterRest, fireMaxHp, hordeMembers, hordeStrength, nextNightTime, nightTimesBetween, nightsFireLasts, patrolXp, residentPower, resolveNight } from "./night";
+import { farmDefense, fireAfterRest, fireMaxHp, hordeMembers, hordeStrength, nextNightTime, nightComposition, nightTimesBetween, nightsFireLasts, patrolXp, residentPower, resolveNight } from "./night";
 
 const noBonus = { damagePct: 0, healthPct: 0 };
 
@@ -72,5 +72,61 @@ describe("night clock", () => {
   it("estimates how many nights the fire lasts", () => {
     expect(nightsFireLasts({ fromNight: 1, activeMembers: 20, defense: 1e9, fireHp: 600, fireMax: 600 })).toBeNull();
     expect(nightsFireLasts({ fromNight: 1, activeMembers: 20, defense: 0, fireHp: 600, fireMax: 600 })).toBe(4);
+  });
+});
+
+describe("night roles (design §19)", () => {
+  const lvl1 = { damagePct: 0, healthPct: 0 };
+  const power = (role: "shooter" | "tank" | "support") => residentPower(1, lvl1, true, role);
+  const team = (shooters: number, tanks: number, supports: number) => [
+    ...Array.from({ length: shooters }, () => ({ role: "shooter" as const, power: power("shooter") })),
+    ...Array.from({ length: tanks }, () => ({ role: "tank" as const, power: power("tank") })),
+    ...Array.from({ length: supports }, () => ({ role: "support" as const, power: power("support") })),
+  ];
+
+  it("each role changes the resident's own power only when they patrol", () => {
+    const base = COMBAT.basePower * COMBAT.patrolMultiplier;
+    expect(power("shooter")).toBeCloseTo(base * 1.3);
+    expect(power("tank")).toBeCloseTo(base);
+    expect(power("support")).toBeCloseTo(base * 0.8);
+    expect(residentPower(1, lvl1, false, "shooter")).toBe(residentPower(1, lvl1, false, "support"));
+  });
+
+  it("tanks cut the fire's damage and supports boost everyone, both capped", () => {
+    expect(nightComposition(team(20, 0, 0), 0, 20)).toMatchObject({ damageCutPct: 0, supportBoostPct: 0, missing: ["tank", "support"] });
+    expect(nightComposition(team(18, 2, 0), 0, 20).damageCutPct).toBe(20);
+    expect(nightComposition(team(16, 4, 0), 0, 20).damageCutPct).toBe(40);
+    expect(nightComposition(team(10, 10, 0), 0, 20).damageCutPct).toBe(40); // capped
+    expect(nightComposition(team(18, 0, 2), 0, 20).supportBoostPct).toBe(15);
+    expect(nightComposition(team(10, 0, 10), 0, 20).supportBoostPct).toBe(30); // capped
+    expect(nightComposition(team(12, 4, 4), 0, 20)).toMatchObject({ counts: { shooter: 12, tank: 4, support: 4 }, missing: [] });
+  });
+
+  it("those who rest add their power but no role effect", () => {
+    const c = nightComposition(team(2, 0, 0), 100, 20);
+    expect(c.power).toBeCloseTo(2 * power("shooter") + 100);
+    expect(c.missing).toEqual(["tank", "support"]);
+  });
+
+  it("a mixed team beats any single-class team", () => {
+    // fire damage on a night whose horde is well above every team's defense
+    const damage = (shooters: number, tanks: number, supports: number) => {
+      const c = nightComposition(team(shooters, tanks, supports), 0, 20);
+      return resolveNight({ night: 12, activeMembers: 20, defense: farmDefense([c.power], 1), fireHp: 1e6, damageCutPct: c.damageCutPct }).damage;
+    };
+    const mixed = damage(12, 4, 4);
+    expect(mixed).toBeLessThan(damage(20, 0, 0));
+    expect(mixed).toBeLessThan(damage(0, 20, 0));
+    expect(mixed).toBeLessThan(damage(0, 0, 20));
+    // and it also has the highest plain defense
+    expect(nightComposition(team(12, 4, 4), 0, 20).power).toBeGreaterThan(nightComposition(team(20, 0, 0), 0, 20).power);
+  });
+
+  it("the damage cut applies only to what passes the defense", () => {
+    const horde = hordeStrength(3, 20);
+    expect(resolveNight({ night: 3, activeMembers: 20, defense: horde - 100, fireHp: 500, damageCutPct: 40 })).toMatchObject({ damage: 60, fireHp: 440 });
+    expect(resolveNight({ night: 3, activeMembers: 20, defense: horde + 50, fireHp: 500, damageCutPct: 40 }).damage).toBe(0);
+    expect(nightsFireLasts({ fromNight: 1, activeMembers: 20, defense: 0, fireHp: 600, fireMax: 600, damageCutPct: 40 }))
+      .toBeGreaterThan(nightsFireLasts({ fromNight: 1, activeMembers: 20, defense: 0, fireHp: 600, fireMax: 600 })!);
   });
 });

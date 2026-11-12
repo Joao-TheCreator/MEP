@@ -4,7 +4,10 @@ import {
   ATTRIBUTES,
   ATTRIBUTE_KEYS,
   LEVEL,
+  NIGHT_CLASS_ROLE,
+  NIGHT_ROLES,
   NIGHT_WEAPONS,
+  PLAYABLE_NIGHT_CLASSES,
   SLOTS,
   TALENTS,
   TIERS,
@@ -60,12 +63,21 @@ export function HeroScreen({ state, act, pending }: ScreenProps) {
             </p>
           </div>
         </div>
-        <div className="seg">
-          {(["volley", "mattress"] as const).map((k) => (
-            <button key={k} className="btn small" aria-pressed={c.nightClass === k} disabled={pending || c.nightClass === k}
-              onClick={() => act(() => nightClassAction(k))}>{NIGHT_WEAPONS[k].className}</button>
-          ))}
+        <div className="class-pick">
+          {PLAYABLE_NIGHT_CLASSES.map((k) => {
+            const role = NIGHT_ROLES[NIGHT_CLASS_ROLE[k]];
+            return (
+              <button key={k} className="talent" aria-pressed={c.nightClass === k}
+                disabled={pending || c.nightClass === k || me.patrolledTonight}
+                onClick={() => act(() => nightClassAction(k))}>
+                <b>{NIGHT_WEAPONS[k].className}</b>
+                <span className="small">{role.name}</span>
+                <span className="small muted">{role.description}</span>
+              </button>
+            );
+          })}
         </div>
+        {me.patrolledTonight && <p className="small muted">Classe travada: você já fez a ronda de hoje. Dá para trocar amanhã.</p>}
         <p className="small muted">Nível, atributos e talentos zeram se a fogueira apagar. O equipamento fica.</p>
       </section>
 

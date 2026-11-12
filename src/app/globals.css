@@ -344,3 +344,13 @@ body:has(.night) { background: #141a2e; }
 .bar.energy { height: 8px; margin-top: 3px; }
 .bar.energy > i { background: #5aa9d6; box-shadow: inset 0 -2px 0 #3d7fa8; }
 .task .small.row { white-space: nowrap; flex-shrink: 0; }
+
+/* ---- Night roles (design §19) ---- */
+.team { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.team-role { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1px; padding: 6px 4px;
+  background: var(--paper-dark); box-shadow: 0 0 0 var(--px) var(--wood); }
+.team-role b { font-family: var(--font-display); font-size: 26px; line-height: 1; }
+.team-role.mine { box-shadow: 0 0 0 var(--px) var(--wine); background: #fff6e2; }
+.team-role.empty b { color: var(--flame); }
+.team-missing { color: var(--flame); }
+.class-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }

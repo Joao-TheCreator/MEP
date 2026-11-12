@@ -15,6 +15,7 @@ import {
   type AttributeKey,
   type Building,
   type NightClassKey,
+  type NightRoleKey,
   type RecipeKey,
   type ResourceKey,
   type SlotKey,
@@ -59,7 +60,9 @@ import {
   activeCount,
   attributesOf,
   characterOf,
-  defenseFor,
+  defenseOf,
+  roleOf,
+  teamFor,
   loadoutOf,
   powerOf as residentPowerOf,
   resolvePendingNights,
@@ -608,7 +611,10 @@ export async function pickTalent(userId: string, tier: number, option: 0 | 1) {
 }
 
 export async function setNightClass(userId: string, nightClass: NightClassKey) {
-  return withFarmTx(userId, async (tx, player) => {
+  return withFarmTx(userId, async (tx, player, farm) => {
+    if (player.patrol_night === farm.nights_survived + 1) {
+      throw new GameError("Você já fez a ronda de hoje com essa classe. Troque amanhã.");
+    }
     await tx`UPDATE players SET night_class = ${nightClass} WHERE id = ${player.id}`;
     return NIGHT_WEAPONS[nightClass].className;
   });
@@ -703,6 +709,9 @@ export interface GameState {
     defense: number;
     /** Nights the fire lasts at this pace (null = it holds). */
     lasts: number | null;
+    /** Tonight's team among those who patrolled (design §19). */
+    team: { counts: Record<NightRoleKey, number>; damageCutPct: number; supportBoostPct: number; missing: NightRoleKey[] };
+    myRole: NightRoleKey;
     patrolled: number;
     active: number;
     /** Extra patrols (loot only) still available today. */
@@ -730,6 +739,7 @@ export interface GameState {
     workshopLevel: number;
     /** Already played tonight's patrol (they gather at the campfire at night). */
     patrolled: boolean;
+    nightClass: NightClassKey;
   }[];
   ranking: { week: RankingRow[]; lastWeek: RankingRow[]; allTime: RankingRow[] };
 }
@@ -783,7 +793,8 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
   const tonight = farm.nights_survived + 1;
   const fireMax = fireMaxHp(active, farm.level);
   const fireHp = farm.fire_hp ?? fireMax;
-  const defense = defenseFor(members, tonight, farm.level);
+  const team = teamFor(members, tonight, active);
+  const defense = defenseOf(team, farm.level);
   const me = characterOf(player);
   const loadout = loadoutOf(player);
   const daily = await dailyRow(sql, player, farm.level, now);
@@ -859,7 +870,14 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       fireMax,
       horde: hordeStrength(tonight, active),
       defense,
-      lasts: nightsFireLasts({ fromNight: tonight, activeMembers: active, defense, fireHp, fireMax }),
+      lasts: nightsFireLasts({ fromNight: tonight, activeMembers: active, defense, fireHp, fireMax, damageCutPct: team.damageCutPct }),
+      team: {
+        counts: team.counts,
+        damageCutPct: team.damageCutPct,
+        supportBoostPct: team.supportBoostPct,
+        missing: team.missing,
+      },
+      myRole: roleOf(player),
       patrolled: members.filter((m) => m.patrol_night === tonight).length,
       expeditionsLeft: Math.max(0, PATROL.expeditionsPerDay - (await expeditionsToday(sql, player.id, now))),
       active,
@@ -886,6 +904,7 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       profession: m.profession,
       workshopLevel: m.workshop_level,
       patrolled: m.patrol_night === tonight,
+      nightClass: m.night_class,
     })),
     ranking: { week, lastWeek, allTime },
   };

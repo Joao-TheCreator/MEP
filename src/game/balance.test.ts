@@ -36,6 +36,16 @@ describe("season balance", () => {
     }
   });
 
+  it("a mixed team never does worse than everyone shooting, and does better for the usual groups (§19)", () => {
+    for (const [name, mix] of Object.entries(GROUPS)) {
+      const shooters = simulateSeason(mix, { team: "shooters" }).wipedOnNight!;
+      expect(s1[name].wipedOnNight!).toBeGreaterThanOrEqual(shooters);
+    }
+    for (const name of ["dedicated", "typical", "slow"] as const) {
+      expect(s1[name].wipedOnNight!).toBeGreaterThan(simulateSeason(GROUPS[name], { team: "shooters" }).wipedOnNight!);
+    }
+  });
+
   it("is deterministic", () => {
     expect(simulateSeason(GROUPS.typical).nights).toEqual(s1.typical.nights);
   });

@@ -13,6 +13,7 @@ it("balance report", () => {
         `season ${i + 1}: wiped on night ${s.wipedOnNight ?? "—"} · farm lv ${s.farmLevel} · avg char lv ${s.finalAvgLevel} · best weapon ${last.bestWeapon}`,
       );
     });
+    lines.push(`all shooters instead: wiped on night ${simulateSeasons(mix, 1, "shooters")[0].wipedOnNight ?? "—"}`);
     const s1 = seasons[0];
     lines.push("night | horde | defense | fire | farm | avg lv | weapon");
     for (const n of s1.nights.filter((n) => n.night === 1 || n.night % 3 === 0 || n.night === s1.wipedOnNight)) {

@@ -4,7 +4,15 @@ import { useState } from "react";
 import type { AvatarKey } from "@/art/avatars";
 import { NightGame } from "@/prototype/night/NightGame";
 import { devNightAction, finishPatrolAction, startPatrolAction, type StartPatrolResult } from "@/app/actions";
+import { NIGHT_ROLES, NIGHT_ROLE_KEYS, type NightRoleKey } from "@/game/config";
 import type { ScreenProps } from "./types";
+
+/** What the team loses when nobody plays a role tonight. */
+const MISSING_TEXT: Record<NightRoleKey, string> = {
+  shooter: "Sem atirador: a defesa fica mais fraca.",
+  tank: "Sem tanque: a fogueira apanha cheio.",
+  support: "Sem suporte: ninguém ganha o bônus de força.",
+};
 
 const fmt = (n: number) => n.toLocaleString("pt-BR");
 
@@ -81,12 +89,35 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
         <p className="small">
           {holds
             ? "Do jeito que está, a defesa segura a horda de hoje."
-            : `Do jeito que está, a fogueira perde ${fmt(night.horde - night.defense)} de vida hoje.`}
+            : `Do jeito que está, a fogueira perde ${fmt(Math.round((night.horde - night.defense) * (1 - night.team.damageCutPct / 100)))} de vida hoje.`}
           {" "}
           {night.lasts === null ? "A fogueira aguenta as próximas noites." : `No ritmo atual, ela apaga em ${night.lasts} ${night.lasts === 1 ? "noite" : "noites"}.`}
         </p>
         <p className="small muted">
           {night.patrolled} de {night.active} moradores ativos já fizeram a ronda. Quem faz a ronda defende com ×1,5; quem dorme, com ×0,5.
+        </p>
+      </section>
+
+      <section className="panel stack">
+        <div className="row between">
+          <h2>Time de hoje</h2>
+          <span className="small muted">conta quem fez a ronda</span>
+        </div>
+        <div className="team">
+          {NIGHT_ROLE_KEYS.map((k) => (
+            <div key={k} className={`team-role ${night.team.counts[k] === 0 ? "empty" : ""} ${night.myRole === k ? "mine" : ""}`}>
+              <b>{night.team.counts[k]}</b>
+              <span>{NIGHT_ROLES[k].name}</span>
+              <span className="small muted">
+                {k === "shooter" ? "força ×1,3" : k === "tank" ? `corta ${fmt(night.team.damageCutPct)}% do dano` : `+${fmt(night.team.supportBoostPct)}% de força`}
+              </span>
+            </div>
+          ))}
+        </div>
+        {night.team.missing.map((k) => <p key={k} className="small team-missing">{MISSING_TEXT[k]}</p>)}
+        <p className="small muted">
+          Você é {NIGHT_ROLES[night.myRole].name}. Tanques cortam até 40% do dano e suportes dão até +30% de força: com 1 em
+          cada 5 moradores em cada papel já chega no máximo. Troque de classe na aba Herói antes da ronda.
         </p>
       </section>
 
@@ -125,7 +156,7 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
             {night.last.wiped
               ? "A fogueira apagou. O sítio recomeçou do zero; os itens ficaram."
               : night.last.damage > 0
-                ? `A fogueira perdeu ${fmt(night.last.damage)} de vida.`
+                ? `A fogueira perdeu ${fmt(night.last.damage)} de vida${night.last.damageCutPct ? ` (os tanques seguraram ${fmt(night.last.damageCutPct)}%)` : ""}.`
                 : "A defesa segurou tudo!"}
           </p>
         </section>

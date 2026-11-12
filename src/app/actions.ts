@@ -7,6 +7,7 @@ import { AVATAR_KEYS } from "@/art/avatars";
 import {
   ATTRIBUTES,
   ATTRIBUTE_KEYS,
+  PLAYABLE_NIGHT_CLASSES,
   PROFESSION_KEYS,
   PROFESSIONS,
   RECIPE_KEYS,
@@ -189,7 +190,7 @@ export async function sendAction(toPlayerId: string, resource: string, amount: n
 
 const slotKey = z.enum(SLOT_KEYS as [string, ...string[]]);
 const attributeKey = z.enum(ATTRIBUTE_KEYS as [string, ...string[]]);
-const nightClass = z.enum(["volley", "mattress"]);
+const nightClass = z.enum(PLAYABLE_NIGHT_CLASSES);
 
 export type StartPatrolResult = ActionResult & { run?: { runId: string; seed: number; cls: "volei" | "colchonete"; kind: string } };
 
