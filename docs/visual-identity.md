@@ -156,3 +156,23 @@ painéis aparecem na ordem do HTML, como antes. Classes de apoio: `.port-only` e
 
 **Pódio do Ranking:** o 1º, 2º e 3º lugar de corpo inteiro sobre degraus (ouro, prata,
 madeira), seguindo o período escolhido (Semana, Anterior, Geral). Só aparece quem pontuou.
+
+## Sons
+
+Efeitos curtos de 8 bits, feitos no próprio navegador (WebAudio, `src/art/sound.ts`):
+sem arquivos de áudio, 100% originais, no mesmo espírito da música do trailer (ondas
+quadrada e triangular, um pouco de ruído). Volume baixo; o mesmo som não repete rápido
+demais. Botão de som na barra de cima (fica guardado no aparelho; começa ligado).
+
+| Som | Quando |
+| --- | --- |
+| `collect` | entrou material no estoque |
+| `coin` | ganhou moedas |
+| `levelUp` | subiu de nível |
+| `build` | o sítio subiu de nível (obra concluída) |
+| `error` | uma ação não deu certo |
+| `hit` / `enemyDown` | acertou / derrubou um inimigo na ronda |
+| `hurt` / `campHit` | o herói / a fogueira apanhou |
+| `special` | usou o especial |
+| `waveClear` / `win` / `lose` | fim de onda / ganhou / perdeu a ronda |
+| `tap` | ligou o som |

@@ -12,6 +12,8 @@ import { LOGO, RESOURCE_SPRITES } from "@/art/sprites";
 import type { ActionResult } from "@/app/actions";
 import { Avatar } from "./Avatar";
 import { Notices } from "./Notices";
+import { SoundToggle } from "./SoundToggle";
+import { play } from "@/art/sound";
 import { FarmScreen } from "./screens/FarmScreen";
 import { WorkScreen } from "./screens/WorkScreen";
 import { StockScreen } from "./screens/StockScreen";
@@ -58,7 +60,9 @@ export function Game({ state }: { state: GameState }) {
 
   const act = (fn: () => Promise<ActionResult>) =>
     startTransition(async () => {
-      setToast(await fn());
+      const r = await fn();
+      if (!r.ok) play("error");
+      setToast(r);
     });
 
   const hint = hintFor(state, now);
@@ -74,6 +78,7 @@ export function Game({ state }: { state: GameState }) {
           <h1 className="grow">{state.farm.name}</h1>
           <Coins n={state.me.coins} />
           <span className="lvl">Nível {state.farm.level}</span>
+          <SoundToggle />
           <Notices state={state} act={act} pending={pending} />
           <Avatar avatar={state.me.avatar} scale={2} />
         </header>
@@ -215,6 +220,13 @@ function useRewardPops(state: GameState) {
     const before = prev.current;
     prev.current = snap;
     if (!before) return;
+    // one sound for what changed, the most important first
+    if (snap.season === before.season) {
+      if (snap.farmLevel > before.farmLevel) play("build");
+      else if (snap.level > before.level) play("levelUp");
+      else if (snap.coins > before.coins) play("coin");
+      else if (Object.entries(snap.inventory).some(([k, v]) => v > (before.inventory[k] ?? 0))) play("collect");
+    }
     const fresh = rewardPops(before, snap, RESOURCE_NAMES).map((p) => ({ ...p, id: nextId.current++ }));
     if (fresh.length === 0) return;
     setPops((list) => [...list, ...fresh]);

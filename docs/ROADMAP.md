@@ -187,7 +187,7 @@ Cada fase = 1 PR pequeno, com lint + testes + build, mostrado no localhost. Áre
 | **7b. Telas deitadas: o resto** | Oficina, Noite, Estoque/Vendinha e Ranking cabendo sem rolar (padrão "split": principal à esquerda, abas à direita); pódio no Ranking. Feito no PR #36. | J | 7a |
 | **7c. Mochila** | Itens achados na ronda (10% por estrela, tier pela noite), equipar, "Equipar o melhor" e desmontar em materiais; a mochila fica no wipe. Feito no PR #37. | R + J | 7a |
 | **8. Papéis (leva 2)** | Cozinheira (Cura: a fogueira recupera vida depois do ataque) e Lanterna (Batedor: horda mais fraca, mais loot) com minijogo próprio; Violão ganha o dele (Acorde deixa a horda lenta). Feito no PR da fase 8. | J + R | 5 |
-| **9. Polimento** | **9a avisos no celular** (armazém cheio, lembrete da ronda, fogueira baixa, wipe; §23), 9b sons, 9c trailer atualizado. O ajuste fino com dados reais do grupo fica para depois do deploy. | J + R | 2 |
+| **9. Polimento** | **9a avisos no celular** (armazém cheio, lembrete da ronda, fogueira baixa, wipe; §23), **9b sons** 8-bit feitos no navegador, com botão de mudo, **9c trailer v2** (56 s, com as cinco classes, Vendinha e mochila; PR #41). O ajuste fino com dados reais do grupo fica para depois do deploy. | J + R | 2 |
 
 Ordem de valor: as fases **1 a 4** já entregam o que o João pediu (mercado, rolê solo,
 ronda que rende); **5 e 6** entregam os papéis e a economia mais rica.
