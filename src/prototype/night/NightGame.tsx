@@ -11,7 +11,7 @@ import {
   ARENA, CAMP, CLASSES, ENEMIES, WAVES, advance, createNight, fireSpecial, heroDown, nightResult, shieldOn,
   specialReady, type Enemy, type HeroClass, type NightState,
 } from "./sim";
-import { ASSOMBRACAO, CAMPFIRE, MATTRESS, ORB, SOMBRA, SPIKE_BALL, TENT, VOLLEYBALL, VULTO } from "./sprites";
+import { ASSOMBRACAO, CAMPFIRE, GUITAR, LADLE, LANTERN, LIGHT, MATTRESS, NOTE, ORB, SOMBRA, SPIKE_BALL, TENT, VOLLEYBALL, VULTO } from "./sprites";
 
 const PX = 0.5; // world units per sprite pixel
 const TICK_MS = 50;
@@ -96,6 +96,8 @@ function Arena({ s, avatar }: { s: NightState; avatar: AvatarKey }) {
           opacity={s.t - e.hitAt < 0.1 ? 0.5 : 1}
         />
         {e.hp < e.maxHp && <Bar x={e.x} y={e.y - 10} w={7} ratio={e.hp / e.maxHp} color="#c9a8ff" />}
+        {s.t < e.stunUntil && <text x={e.x} y={e.y - 12} fontSize={4} textAnchor="middle" fill="#ffe08a">✦</text>}
+        {s.t >= e.stunUntil && s.t < e.slowUntil && <text x={e.x} y={e.y - 12} fontSize={4} textAnchor="middle" fill="#f08ac8">♪</text>}
       </g>
     ),
   }));
@@ -111,6 +113,14 @@ function Arena({ s, avatar }: { s: NightState; avatar: AvatarKey }) {
         <Feet sprite={sprite} x={h.x} y={h.y} />
         {h.cls === "colchonete" && !down && <Feet sprite={MATTRESS} x={mattressX} y={h.y - 1} />}
         {h.cls === "volei" && !down && !swing && <Feet sprite={VOLLEYBALL} x={h.x + h.facing * 4} y={h.y - 4} />}
+        {h.cls === "violao" && !down && <Feet sprite={GUITAR} x={h.x + h.facing * 4} y={h.y - 2} />}
+        {h.cls === "cozinheira" && !down && <Feet sprite={LADLE} x={h.x + h.facing * (swing ? 6 : 4)} y={h.y - (swing ? 5 : 3)} />}
+        {h.cls === "lanterna" && !down && (
+          <>
+            <circle cx={h.x + h.facing * 4} cy={h.y - 7} r={7 + Math.sin(s.t * 8) * 0.6} fill="#ffe08a" opacity={0.16} />
+            <Feet sprite={LANTERN} x={h.x + h.facing * 4} y={h.y - 4} />
+          </>
+        )}
         {down && <text x={h.x + 3} y={h.y - 14} fontSize={4} fill="#e9d6ff">zzz</text>}
         <Bar x={h.x} y={h.y - WALKER_H * PX - 2} w={9} ratio={h.hp / h.maxHp} color="#8fe07a" />
       </g>
@@ -137,7 +147,7 @@ function Arena({ s, avatar }: { s: NightState; avatar: AvatarKey }) {
       <Bar x={CAMP.x} y={CAMP.y + 4} w={14} ratio={s.camp.hp / s.camp.max} color="#ffb35c" />
       {layers.map((l) => l.node)}
       {s.shots.map((sh) => (
-        <Feet key={sh.id} sprite={sh.kind === "orb" ? ORB : sh.kind === "spike" ? SPIKE_BALL : VOLLEYBALL} x={sh.x} y={sh.y + 1.5} />
+        <Feet key={sh.id} sprite={SHOT_SPRITE[sh.kind]} x={sh.x} y={sh.y + 1.5} />
       ))}
       {s.fx.map((f) => (
         <text
@@ -170,6 +180,8 @@ export interface NightGameProps {
   onFinish?: (won: boolean, specialTicks: number[]) => void;
   onClose?: () => void;
 }
+
+const SHOT_SPRITE = { orb: ORB, spike: SPIKE_BALL, ball: VOLLEYBALL, note: NOTE, light: LIGHT } as const;
 
 export function NightGame({ fixedAvatar, fixedClass, seed, onFinish, onClose }: NightGameProps = {}) {
   const embedded = !!(fixedAvatar && fixedClass);

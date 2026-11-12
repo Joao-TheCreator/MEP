@@ -73,7 +73,7 @@ try {
                              xp, gear, night_class, bag)
         VALUES (${user.id}, ${farm.id}, ${name}, ${key}, ${profession}, ${1 + (i % 3)},
                 now() - make_interval(hours => ${hoursAgo}),
-                ${XP[i % XP.length]}, ${tx.json(GEAR[i % GEAR.length])}, ${["volley", "volley", "volley", "mattress", "guitar"][i % 5]},
+                ${XP[i % XP.length]}, ${tx.json(GEAR[i % GEAR.length])}, ${["volley", "volley", "volley", "mattress", "guitar", "cook", "lantern"][i % 7]},
                 ${tx.json(BAGS[i % BAGS.length].map((it, j) => ({ id: `seed-${i}-${j}`, ...it })))})
         RETURNING id`;
       // everyone gets some planks, bars and tools too, to try the gear upgrades

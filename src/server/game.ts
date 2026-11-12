@@ -6,6 +6,7 @@ import {
   FARM,
   MARKET,
   PATROL,
+  NIGHT_ROLES,
   NIGHT_WEAPONS,
   PROFESSIONS,
   RECIPES,
@@ -504,8 +505,16 @@ export async function buyFromMarket(userId: string, resource: ResourceKey, qty: 
 // ---------- night & character (design §11, §12, §15) ----------
 
 /** Class used in the patrol mini-game for each night class. */
+const HERO_CLASS: Record<NightClassKey, HeroClass> = {
+  volley: "volei",
+  mattress: "colchonete",
+  guitar: "violao",
+  cook: "cozinheira",
+  lantern: "lanterna",
+};
+
 function patrolClass(player: PlayerRow): HeroClass {
-  return player.night_class === "mattress" ? "colchonete" : "volei";
+  return HERO_CLASS[player.night_class] ?? "volei";
 }
 
 async function expeditionsToday(tx: Sql | Tx, playerId: string, now: Date): Promise<number> {
@@ -559,12 +568,14 @@ export async function finishPatrol(userId: string, runId: string, specialTicks: 
     }
     const result = replayPatrol(run.cls, run.seed, specialTicks);
     const night = farm.nights_survived + 1;
-    const rewards = patrolRewards(result.stars, night, run.seed);
+    // the scout (Lanterna) finds more on their own patrol (design §22)
+    const extra = run.cls === "lanterna" ? NIGHT_ROLES.scout.extraLootRolls : 0;
+    const rewards = patrolRewards(result.stars, night, run.seed, extra);
     await tx`UPDATE patrol_runs SET finished_at = ${now}, stars = ${result.stars} WHERE id = ${run.id}`;
     await tx`UPDATE players SET coins = coins + ${rewards.coins} WHERE id = ${player.id}`;
     await addItems(tx, player.id, rewards.loot);
     // gear found on the patrol goes to the backpack; what does not fit is dismantled
-    const found = rollGearDrops(result.stars, night, run.seed);
+    const found = rollGearDrops(result.stars, night, run.seed, extra);
     const packed = addToBag(player.bag ?? [], found, bagCapacity(characterOf(player).level));
     if (found.length > 0) {
       await tx`UPDATE players SET bag = ${tx.json(packed.bag as never)} WHERE id = ${player.id}`;
@@ -793,7 +804,7 @@ export interface GameState {
     /** Nights the fire lasts at this pace (null = it holds). */
     lasts: number | null;
     /** Tonight's team among those who patrolled (design §19). */
-    team: { counts: Record<NightRoleKey, number>; damageCutPct: number; supportBoostPct: number; missing: NightRoleKey[] };
+    team: { counts: Record<NightRoleKey, number>; damageCutPct: number; supportBoostPct: number; fireHealPct: number; hordeCutPct: number; missing: NightRoleKey[] };
     myRole: NightRoleKey;
     patrolled: number;
     active: number;
@@ -962,13 +973,18 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       nextAt: nextNightTime(now).toISOString(),
       fireHp,
       fireMax,
-      horde: hordeStrength(tonight, active),
+      horde: Math.round(hordeStrength(tonight, active) * (1 - team.hordeCutPct / 100)),
       defense,
-      lasts: nightsFireLasts({ fromNight: tonight, activeMembers: active, defense, fireHp, fireMax, damageCutPct: team.damageCutPct, farmLevel: farm.level }),
+      lasts: nightsFireLasts({
+        fromNight: tonight, activeMembers: active, defense, fireHp, fireMax, farmLevel: farm.level,
+        damageCutPct: team.damageCutPct, hordeCutPct: team.hordeCutPct, fireHealPct: team.fireHealPct,
+      }),
       team: {
         counts: team.counts,
         damageCutPct: team.damageCutPct,
         supportBoostPct: team.supportBoostPct,
+        fireHealPct: team.fireHealPct,
+        hordeCutPct: team.hordeCutPct,
         missing: team.missing,
       },
       myRole: roleOf(player),

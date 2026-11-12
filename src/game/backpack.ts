@@ -30,11 +30,12 @@ function tierForNight(night: number): { tier: TierKey; lowerChance: number } {
  * Gear found on a patrol: one roll per star (design §21). Uses the run's seed,
  * so the server decides and replaying gives the same items.
  */
-export function rollGearDrops(stars: number, night: number, seed: number): BagItem[] {
+export function rollGearDrops(stars: number, night: number, seed: number, extraRolls = 0): BagItem[] {
   const n = Math.max(1, Math.floor(night));
   const rand = rng((seed ^ 0x5bd1e995) >>> 0);
   const out: BagItem[] = [];
-  for (let i = 0; i < Math.max(0, stars); i++) {
+  const rolls = stars > 0 ? stars + Math.max(0, extraRolls) : 0;
+  for (let i = 0; i < rolls; i++) {
     if (rand() >= BACKPACK.dropChancePerStar) continue;
     const slot = SLOT_KEYS[Math.floor(rand() * SLOT_KEYS.length)];
     const { tier, lowerChance } = tierForNight(n);

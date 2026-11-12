@@ -13,7 +13,20 @@ const MISSING_TEXT: Record<NightRoleKey, string> = {
   shooter: "Sem atirador: a defesa fica mais fraca.",
   tank: "Sem tanque: a fogueira apanha cheio.",
   support: "Sem suporte: ninguém ganha o bônus de força.",
+  healer: "Sem cura: a fogueira não recupera vida depois do ataque.",
+  scout: "Sem batedor: a horda chega com força total.",
 };
+
+/** What each role is giving the team tonight. */
+function roleEffectText(k: NightRoleKey, t: ScreenProps["state"]["night"]["team"]) {
+  switch (k) {
+    case "shooter": return "força ×1,3";
+    case "tank": return `corta ${fmt(t.damageCutPct)}% do dano`;
+    case "support": return `+${fmt(t.supportBoostPct)}% de força`;
+    case "healer": return `fogueira +${fmt(t.fireHealPct)}%`;
+    case "scout": return `horda −${fmt(t.hordeCutPct)}%`;
+  }
+}
 
 const fmt = (n: number) => n.toLocaleString("pt-BR");
 
@@ -129,16 +142,15 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
             <div key={k} className={`team-role ${night.team.counts[k] === 0 ? "empty" : ""} ${night.myRole === k ? "mine" : ""}`}>
               <b>{night.team.counts[k]}</b>
               <span>{NIGHT_ROLES[k].name}</span>
-              <span className="small muted">
-                {k === "shooter" ? "força ×1,3" : k === "tank" ? `corta ${fmt(night.team.damageCutPct)}% do dano` : `+${fmt(night.team.supportBoostPct)}% de força`}
-              </span>
+              <span className="small muted">{roleEffectText(k, night.team)}</span>
             </div>
           ))}
         </div>
         {night.team.missing.map((k) => <p key={k} className="small team-missing">{MISSING_TEXT[k]}</p>)}
         <p className="small muted">
-          Você é {NIGHT_ROLES[night.myRole].name}. Tanques cortam até 40% do dano e suportes dão até +30% de força: com 1 em
-          cada 5 moradores em cada papel já chega no máximo. Troque de classe na aba Herói antes da ronda.
+          Você é {NIGHT_ROLES[night.myRole].name}. Tanques cortam até 40% do dano, suportes dão até +30% de força, a cura
+          devolve até 30% da vida da fogueira depois do ataque e batedores deixam a horda até 20% mais fraca. Com 1 em cada 5
+          moradores em cada papel, quase tudo chega no máximo. Troque de classe na aba Herói antes da ronda.
         </p>
       </section>
       </Pane>
@@ -175,12 +187,14 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
         <section className="panel stack">
           <h2>Última noite</h2>
           <p>
-            Noite {night.last.night} (temporada {night.last.season}): horda {fmt(night.last.horde)} × defesa {fmt(night.last.defense)}.{" "}
+            Noite {night.last.night} (temporada {night.last.season}): horda {fmt(night.last.horde)}
+            {night.last.hordeCutPct ? ` (os batedores tiraram ${fmt(night.last.hordeCutPct)}%)` : ""} × defesa {fmt(night.last.defense)}.{" "}
             {night.last.wiped
               ? "A fogueira apagou. O sítio recomeçou do zero; os itens ficaram."
               : night.last.damage > 0
                 ? `A fogueira perdeu ${fmt(night.last.damage)} de vida${night.last.damageCutPct ? ` (os tanques seguraram ${fmt(night.last.damageCutPct)}%)` : ""}.`
                 : "A defesa segurou tudo!"}
+            {!night.last.wiped && night.last.fireHealPct ? ` Depois, a cura devolveu ${fmt(night.last.fireHealPct)}% da vida da fogueira.` : ""}
           </p>
         </section>
         </Pane>

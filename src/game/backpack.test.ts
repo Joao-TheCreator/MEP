@@ -6,6 +6,15 @@ describe("gear found on patrols (design §21)", () => {
   it("is decided by the seed", () => {
     expect(rollGearDrops(3, 12, 777)).toEqual(rollGearDrops(3, 12, 777));
     expect(rollGearDrops(0, 12, 777)).toEqual([]);
+    // the scout's extra roll only counts when the patrol earned a star (§22)
+    expect(rollGearDrops(0, 12, 777, 1)).toEqual([]);
+    let base = 0;
+    let scout = 0;
+    for (let seed = 1; seed <= 2000; seed++) {
+      base += rollGearDrops(1, 12, seed).length;
+      scout += rollGearDrops(1, 12, seed, 1).length;
+    }
+    expect(scout).toBeGreaterThan(base * 1.6);
   });
 
   it("drops about 10% of the stars", () => {
