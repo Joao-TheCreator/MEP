@@ -199,3 +199,33 @@ table.rank td.pts { text-align: right; font-family: var(--font-display); font-si
 .farm-bubble.below { transform: translate(-50%, 0); }
 .farm-bubble.below::after { top: -6px; bottom: auto; border-top: 0; border-bottom: 4px solid var(--wood-dark); }
 .farm-bubble::after { content: ""; position: absolute; bottom: -6px; left: 50%; margin-left: -4px; border: 4px solid transparent; border-top-color: var(--wood-dark); border-bottom: 0; }
+
+/* ---- Night prototype (/prototipo/noite, issue #14) ---- */
+.night { --bg: #141a2e; }
+.night .hero h1 { color: #e9d6ff; }
+.night-classes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.night-class { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 10px; font: inherit; color: var(--ink);
+  background: var(--paper-dark); border: 0; box-shadow: 0 0 0 var(--px) var(--wood); cursor: pointer; }
+.night-class[aria-pressed="true"] { background: #fff6e2; box-shadow: 0 0 0 var(--px) var(--wine), inset 0 -4px 0 #e9cfa0; }
+.night-class b { color: var(--wine); font-family: var(--font-display); }
+.night-enemies { margin: 0; padding-left: 18px; }
+.night-hud { padding: 8px 10px; margin-bottom: 8px; }
+.night-bars { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: center; margin-top: 6px; }
+.night-arena { position: relative; box-shadow: 0 0 0 var(--px) #2a2140; background: #0b1030; line-height: 0; }
+.night-arena svg { width: 100%; height: auto; display: block; image-rendering: pixelated; }
+.night-overlay { position: absolute; inset: 0; display: grid; place-items: center; color: #e9d6ff; font-family: var(--font-display);
+  font-size: 24px; background: #0b103080; line-height: 1; }
+.night-special { position: relative; overflow: hidden; margin-top: 10px; background: #3a2d5c; }
+.night-special.ready { background: var(--flame); animation: night-pulse 0.8s ease-in-out infinite alternate; }
+.night-energy { position: absolute; inset: 0 auto 0 0; background: #6a54a8; transition: width 0.2s; }
+.night-special.ready .night-energy { display: none; }
+.night-special-label { position: relative; }
+.night-result { margin-top: 10px; text-align: center; }
+.night-result .row { justify-content: center; }
+.night-stars { font-size: 40px; letter-spacing: 6px; color: #00000030; line-height: 1; }
+.night-stars .on { color: var(--gold); }
+@keyframes night-pulse { from { filter: brightness(1); } to { filter: brightness(1.25); } }
+@media (prefers-reduced-motion: reduce) { .night-special.ready { animation: none; } }
+body:has(.night) { background: #141a2e; }
+.night-special:disabled { filter: none; opacity: 1; color: #cfc3ea; }
+.night-arena { max-width: 420px; margin: 0 auto; }
