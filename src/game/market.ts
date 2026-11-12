@@ -48,3 +48,11 @@ export function bagBuyCost(bag: Bag): number {
 export function gameDay(now: Date): string {
   return new Date(now.getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
 }
+
+/**
+ * How much of a resource is spare to sell: what the player has minus what the
+ * current building still needs and what the next workshop upgrade costs.
+ */
+export function surplusToSell(have: number, reserves: number[]): number {
+  return Math.max(0, Math.floor(have) - reserves.reduce((a, b) => a + Math.max(0, b), 0));
+}

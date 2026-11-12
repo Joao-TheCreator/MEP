@@ -250,38 +250,66 @@ export async function upgradeWorkshop(userId: string) {
   });
 }
 
+/** One donation inside the farm transaction (shared by donate and donateAll). */
+async function donateIn(tx: Tx, player: PlayerRow, farm: FarmRow, now: Date, resource: ResourceKey, qty: number) {
+  const base = currentBuilding(farm.level);
+  if (!base) throw new GameError("Não há construção em andamento.");
+  const building = scaledBuilding(base, await activeMembers(tx, farm.id, now));
+  const progress = await getProgress(tx, farm.id);
+  const remaining = remainingForBuilding(building, progress)[resource] ?? 0;
+  if (remaining <= 0) throw new GameError(`${building.name} não precisa mais de ${RESOURCES[resource].name}.`);
+  const amount = Math.min(qty, remaining);
+  await removeItems(tx, player.id, { [resource]: amount });
+  await tx`
+    INSERT INTO farm_building_progress (farm_id, resource, qty) VALUES (${farm.id}, ${resource}, ${amount})
+    ON CONFLICT (farm_id, resource) DO UPDATE SET qty = farm_building_progress.qty + EXCLUDED.qty`;
+  const points = amount * RESOURCES[resource].points;
+  await addXp(tx, player.id, xpFor("donate", points));
+  await tx`
+    INSERT INTO donations (farm_id, player_id, resource, qty, points)
+    VALUES (${farm.id}, ${player.id}, ${resource}, ${amount}, ${points})`;
+
+  progress[resource] = (progress[resource] ?? 0) + amount;
+  let completed: string | null = null;
+  if (isBuildingComplete(building, progress)) {
+    // Settle everyone at the old farm level before the bonus kicks in.
+    const members = await tx<PlayerRow[]>`
+      SELECT * FROM players WHERE farm_id = ${farm.id} ORDER BY id FOR UPDATE`;
+    for (const m of members) await settle(tx, m, farm.level, now);
+    await tx`DELETE FROM farm_building_progress WHERE farm_id = ${farm.id}`;
+    await tx`INSERT INTO farm_buildings (farm_id, building_key) VALUES (${farm.id}, ${building.key})`;
+    await tx`UPDATE farms SET level = level + 1 WHERE id = ${farm.id}`;
+    farm.level += 1;
+    completed = building.name;
+  }
+  return { amount, points, completed };
+}
+
 export async function donate(userId: string, resource: ResourceKey, qty: number) {
+  return withFarmTx(userId, (tx, player, farm, now) => donateIn(tx, player, farm, now, resource, qty));
+}
+
+/** Donates everything the player has that the current building still needs, in one go. */
+export async function donateAll(userId: string) {
   return withFarmTx(userId, async (tx, player, farm, now) => {
     const base = currentBuilding(farm.level);
     if (!base) throw new GameError("Não há construção em andamento.");
     const building = scaledBuilding(base, await activeMembers(tx, farm.id, now));
-    const progress = await getProgress(tx, farm.id);
-    const remaining = remainingForBuilding(building, progress)[resource] ?? 0;
-    if (remaining <= 0) throw new GameError(`${building.name} não precisa mais de ${RESOURCES[resource].name}.`);
-    const amount = Math.min(qty, remaining);
-    await removeItems(tx, player.id, { [resource]: amount });
-    await tx`
-      INSERT INTO farm_building_progress (farm_id, resource, qty) VALUES (${farm.id}, ${resource}, ${amount})
-      ON CONFLICT (farm_id, resource) DO UPDATE SET qty = farm_building_progress.qty + EXCLUDED.qty`;
-    const points = amount * RESOURCES[resource].points;
-    await addXp(tx, player.id, xpFor("donate", points));
-    await tx`
-      INSERT INTO donations (farm_id, player_id, resource, qty, points)
-      VALUES (${farm.id}, ${player.id}, ${resource}, ${amount}, ${points})`;
-
-    progress[resource] = (progress[resource] ?? 0) + amount;
+    const remaining = remainingForBuilding(building, await getProgress(tx, farm.id));
+    const inventory = await getInventory(tx, player.id);
+    let points = 0;
+    let kinds = 0;
     let completed: string | null = null;
-    if (isBuildingComplete(building, progress)) {
-      // Settle everyone at the old farm level before the bonus kicks in.
-      const members = await tx<PlayerRow[]>`
-        SELECT * FROM players WHERE farm_id = ${farm.id} ORDER BY id FOR UPDATE`;
-      for (const m of members) await settle(tx, m, farm.level, now);
-      await tx`DELETE FROM farm_building_progress WHERE farm_id = ${farm.id}`;
-      await tx`INSERT INTO farm_buildings (farm_id, building_key) VALUES (${farm.id}, ${building.key})`;
-      await tx`UPDATE farms SET level = level + 1 WHERE id = ${farm.id}`;
-      completed = building.name;
+    for (const [resource, need] of Object.entries(remaining) as [ResourceKey, number][]) {
+      const give = Math.min(need, inventory[resource] ?? 0);
+      if (give < 1 || completed) continue;
+      const r = await donateIn(tx, player, farm, now, resource, give);
+      points += r.points;
+      kinds += 1;
+      completed = r.completed;
     }
-    return { amount, points, completed };
+    if (kinds === 0) throw new GameError("Você não tem nada que a obra precise agora.");
+    return { points, kinds, completed };
   });
 }
 

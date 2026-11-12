@@ -7,7 +7,9 @@ import { LANDMARKS, type PlaceKey } from "@/art/FarmMap";
 import { farmHour, isNight } from "@/art/daylight";
 import type { Spot } from "@/art/FarmScene";
 import type { ProfessionKey } from "@/game/config";
-import { donateAction } from "@/app/actions";
+import { collectAction, donateAction, donateAllAction } from "@/app/actions";
+import { computeProduction } from "@/game/rules";
+import { PROFESSIONS as PROFS, RESOURCES } from "@/game/config";
 import { Res } from "../Res";
 import type { ScreenProps } from "./types";
 
@@ -71,7 +73,25 @@ export function FarmScreen({ state, now, act, pending, openNight }: ScreenProps)
 
       <section className={`drawer ${open ? "open" : ""}`} aria-label="Construção">
         {showingPicked ? (
-          <PlaceDrawer place={picked!} completed={farm.completed} open={open} setOpen={setOpen} onClose={() => setPicked(null)} />
+          <PlaceDrawer
+            place={picked!}
+            completed={farm.completed}
+            open={open}
+            setOpen={setOpen}
+            onClose={() => setPicked(null)}
+            work={picked === WORK_SPOT[me.profession] ? {
+              units: computeProduction({
+                profession: me.profession,
+                workshopLevel: me.workshopLevel,
+                farmLevel: farm.level,
+                lastCollectedAt: new Date(me.lastCollectedAt),
+                now,
+              }).units,
+              resource: RESOURCES[PROFS[me.profession].produces].name,
+              collect: () => act(collectAction),
+              pending,
+            } : undefined}
+          />
         ) : b ? (
           <BuildingDrawer
             building={b}
@@ -143,6 +163,14 @@ function BuildingDrawer({
       <DrawerHandle title={`Construindo: ${b.name}`} subtitle={`${Math.round(pct * 100)}% pronto`} pct={pct} open={open} setOpen={setOpen} />
       <div className="drawer-body stack">
         <p className="small muted">{b.description}</p>
+        {(() => {
+          const useful = rows.filter(([r, need]) => Math.min(inventory[r] ?? 0, need - (progress[r] ?? 0)) > 0).length;
+          return useful > 0 ? (
+            <button className="btn big" disabled={pending} onClick={() => act(donateAllAction)}>
+              Doar o que falta ({useful} {useful === 1 ? "material" : "materiais"})
+            </button>
+          ) : null;
+        })()}
         {rows.map(([r, need]) => {
           const done = progress[r] ?? 0;
           const remaining = need - done;
@@ -180,12 +208,15 @@ function PlaceDrawer({
   open,
   setOpen,
   onClose,
+  work,
 }: {
   place: PlaceKey;
   completed: string[];
   open: boolean;
   setOpen: (o: boolean) => void;
   onClose: () => void;
+  /** Set when this is the player's own work place: they can collect right here. */
+  work?: { units: number; resource: string; collect: () => void; pending: boolean };
 }) {
   const building = BUILDINGS.find((bd) => bd.key === place);
   const landmark = place in LANDMARKS ? LANDMARKS[place as keyof typeof LANDMARKS] : null;
@@ -194,9 +225,14 @@ function PlaceDrawer({
   const status = building ? (completed.includes(place) ? "Pronto" : "Em obras") : "Lugar do sítio";
   return (
     <>
-      <DrawerHandle title={name} subtitle={status} open={open} setOpen={setOpen} />
+      <DrawerHandle title={name} subtitle={work ? "Seu local de trabalho" : status} open={open} setOpen={setOpen} />
       <div className="drawer-body stack">
         <p className="small muted">{description}</p>
+        {work && (
+          <button className="btn big green" disabled={work.pending || work.units < 1} onClick={work.collect}>
+            {work.units < 1 ? "Nada para coletar ainda" : `Coletar ${work.units.toLocaleString("pt-BR")} de ${work.resource}`}
+          </button>
+        )}
         <button className="btn small secondary" onClick={onClose}>Voltar para a obra</button>
       </div>
     </>
