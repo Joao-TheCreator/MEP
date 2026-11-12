@@ -11,13 +11,17 @@ import { FarmScreen } from "./screens/FarmScreen";
 import { WorkScreen } from "./screens/WorkScreen";
 import { StockScreen } from "./screens/StockScreen";
 import { RankingScreen } from "./screens/RankingScreen";
+import { NightScreen } from "./screens/NightScreen";
+import { HeroScreen } from "./screens/HeroScreen";
 import type { ScreenProps } from "./screens/types";
 
-type Tab = "farm" | "work" | "barn" | "rank";
+type Tab = "farm" | "work" | "hero" | "night" | "barn" | "rank";
 
 const TABS: { key: Tab; label: string; icon: ResourceKey }[] = [
   { key: "farm", label: "Sítio", icon: "plank" },
   { key: "work", label: "Oficina", icon: "tool" },
+  { key: "hero", label: "Herói", icon: "iron_bar" },
+  { key: "night", label: "Noite", icon: "ore" },
   { key: "barn", label: "Estoque", icon: "feed" },
   { key: "rank", label: "Ranking", icon: "cheese" },
 ];
@@ -59,9 +63,12 @@ export function Game({ state }: { state: GameState }) {
         </header>
         {tab === "farm" && <FarmScreen {...ctx} />}
         {tab === "work" && <WorkScreen {...ctx} />}
+        {tab === "hero" && <HeroScreen {...ctx} />}
+        {tab === "night" && <NightScreen {...ctx} />}
         {tab === "barn" && <StockScreen {...ctx} />}
         {tab === "rank" && <RankingScreen {...ctx} />}
       </main>
+      <WipeNotice state={state} onSee={() => setTab("night")} />
       {toast && <div className={`toast ${toast.ok ? "" : "error"}`} role="status">{toast.message}</div>}
       <nav className="tabs" role="tablist">
         {TABS.map((t) => (
@@ -72,5 +79,45 @@ export function Game({ state }: { state: GameState }) {
         ))}
       </nav>
     </>
+  );
+}
+
+/**
+ * Shown once per season after a wipe: the fire went out, a new season began and
+ * only the items were kept. Remembered per browser (just a convenience).
+ */
+function WipeNotice({ state, onSee }: { state: GameState; onSee: () => void }) {
+  const last = state.night.seasons[0];
+  const key = "sitio-seen-season";
+  const [seen, setSeen] = useState<number | null>(null);
+  useEffect(() => {
+    try {
+      setSeen(Number(localStorage.getItem(key) ?? 0));
+    } catch {
+      setSeen(state.night.season);
+    }
+  }, [state.night.season]);
+  if (!last || seen === null || seen >= state.night.season) return null;
+  const close = () => {
+    try {
+      localStorage.setItem(key, String(state.night.season));
+    } catch {}
+    setSeen(state.night.season);
+  };
+  return (
+    <div className="wipe-notice" role="dialog" aria-label="A fogueira apagou">
+      <div className="panel stack">
+        <h2>A fogueira apagou</h2>
+        <p>
+          Na noite {last.endedNight} a horda venceu e a {last.season}ª temporada acabou. O sítio recomeçou do zero:
+          nível, obras, recursos, oficinas e o nível de todo mundo.
+        </p>
+        <p><b>Os itens ficaram.</b> Começa a {state.night.season}ª temporada.</p>
+        <div className="row" style={{ gap: 8 }}>
+          <button className="btn big" onClick={close}>Recomeçar</button>
+          <button className="btn big secondary" onClick={() => { close(); onSee(); }}>Ver a noite</button>
+        </div>
+      </div>
+    </div>
   );
 }

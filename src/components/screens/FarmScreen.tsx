@@ -50,7 +50,9 @@ export function FarmScreen({ state, act, pending }: ScreenProps) {
         placeLabels={placeLabels}
       />
       <div className="stage-top">
-        <span className="chip">Arraste · toque em alguém ou numa construção</span>
+        <span className={`chip fire-chip ${state.night.defense < state.night.horde ? "danger" : ""}`}>
+          Fogueira {Math.round((state.night.fireHp / state.night.fireMax) * 100)}% · noite {state.night.night} às 20h
+        </span>
         <InviteButton code={farm.inviteCode} />
       </div>
 
