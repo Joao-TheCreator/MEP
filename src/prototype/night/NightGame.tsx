@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { play, type SoundName } from "@/art/sound";
 import { SpriteRects, type SpriteDef } from "@/art/pixel";
 import { rng } from "@/art/grid";
 import { TREE_DARK } from "@/art/sprites";
@@ -181,6 +182,25 @@ export interface NightGameProps {
   onClose?: () => void;
 }
 
+/** Floating texts of the mini-game → sounds (one of each kind per tick). */
+function fxSound(text: string, color: string): SoundName | null {
+  if (text === "✦") return "enemyDown";
+  if (text.endsWith("!") && text !== "Desmaiou!") return text === "Voltou!" ? "waveClear" : "special";
+  if (color === "#ff8a8a") return "hurt";
+  if (color === "#ffb35c") return "campHit";
+  if (/^\d+$/.test(text)) return "hit";
+  return null;
+}
+
+function soundsFor(n: NightState, before: { wave: number; phase: NightState["phase"]; lastFx: number }) {
+  const names = new Set<SoundName>();
+  for (const f of n.fx) if (f.id > before.lastFx) { const s = fxSound(f.text, f.color); if (s) names.add(s); }
+  if (n.phase !== before.phase && n.phase === "won") names.add("win");
+  else if (n.phase !== before.phase && n.phase === "lost") names.add("lose");
+  else if (n.wave > before.wave) names.add("waveClear");
+  for (const s of names) play(s);
+}
+
 const SHOT_SPRITE = { orb: ORB, spike: SPIKE_BALL, ball: VOLLEYBALL, note: NOTE, light: LIGHT } as const;
 
 export function NightGame({ fixedAvatar, fixedClass, seed, onFinish, onClose }: NightGameProps = {}) {
@@ -210,7 +230,12 @@ export function NightGame({ fixedAvatar, fixedClass, seed, onFinish, onClose }: 
   useEffect(() => {
     if (screen !== "play" || paused || over) return;
     const id = setInterval(() => {
-      if (night.current) advance(night.current, (TICK_MS / 1000) * speed);
+      const n = night.current;
+      if (n) {
+        const before = { wave: n.wave, phase: n.phase, lastFx: n.fx.at(-1)?.id ?? -1 };
+        advance(n, (TICK_MS / 1000) * speed);
+        soundsFor(n, before);
+      }
       setFrame((f) => f + 1);
     }, TICK_MS);
     return () => clearInterval(id);
@@ -223,7 +248,10 @@ export function NightGame({ fixedAvatar, fixedClass, seed, onFinish, onClose }: 
   }, [over, onFinish]);
 
   const special = useCallback(() => {
-    if (night.current && fireSpecial(night.current)) setFrame((f) => f + 1);
+    if (night.current && fireSpecial(night.current)) {
+      play("special");
+      setFrame((f) => f + 1);
+    }
   }, []);
 
   useEffect(() => {
