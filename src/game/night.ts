@@ -76,3 +76,35 @@ export const WIPE_RESETS = [
   "character level, XP, attributes and talents",
   "night counter (the horde starts again at night 1)",
 ] as const;
+
+/**
+ * Moments the horde attacked strictly after `from` and up to `to` (inclusive):
+ * every day at NIGHT.hour in Brasília (UTC−3, no daylight saving since 2019).
+ */
+export function nightTimesBetween(from: Date, to: Date, max = 120): Date[] {
+  const out: Date[] = [];
+  const utcHour = NIGHT.hour + 3;
+  const t = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate(), utcHour));
+  if (t <= from) t.setUTCDate(t.getUTCDate() + 1);
+  while (t <= to && out.length < max) {
+    out.push(new Date(t));
+    t.setUTCDate(t.getUTCDate() + 1);
+  }
+  return out;
+}
+
+/** Next attack after `now`. */
+export function nextNightTime(now: Date): Date {
+  return nightTimesBetween(now, new Date(now.getTime() + 25 * 3_600_000), 1)[0];
+}
+
+/** How many nights the fire lasts if the defense stays as it is (null = it holds). */
+export function nightsFireLasts(params: { fromNight: number; activeMembers: number; defense: number; fireHp: number; fireMax: number }): number | null {
+  let hp = params.fireHp;
+  for (let i = 0; i < 60; i++) {
+    const out = resolveNight({ night: params.fromNight + i, activeMembers: params.activeMembers, defense: params.defense, fireHp: hp });
+    if (out.wiped) return i + 1;
+    hp = fireAfterRest(out.fireHp, params.fireMax);
+  }
+  return null;
+}

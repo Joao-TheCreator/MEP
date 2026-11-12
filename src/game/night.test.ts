@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { COMBAT, FIRE, NIGHT } from "./config";
-import { farmDefense, fireAfterRest, fireMaxHp, hordeMembers, hordeStrength, patrolXp, residentPower, resolveNight } from "./night";
+import { farmDefense, fireAfterRest, fireMaxHp, hordeMembers, hordeStrength, nextNightTime, nightTimesBetween, nightsFireLasts, patrolXp, residentPower, resolveNight } from "./night";
 
 const noBonus = { damagePct: 0, healthPct: 0 };
 
@@ -48,5 +48,29 @@ describe("night hordes", () => {
 
   it("patrol XP grows with the night", () => {
     expect(patrolXp(10)).toBeGreaterThan(patrolXp(1));
+  });
+});
+
+describe("night clock", () => {
+  it("attacks every day at 20h in Brasília (23h UTC)", () => {
+    const from = new Date("2026-11-10T12:00:00Z");
+    const to = new Date("2026-11-13T00:00:00Z");
+    expect(nightTimesBetween(from, to).map((d) => d.toISOString())).toEqual([
+      "2026-11-10T23:00:00.000Z",
+      "2026-11-11T23:00:00.000Z",
+      "2026-11-12T23:00:00.000Z",
+    ]);
+  });
+
+  it("does not count the night it starts on and stops at `to`", () => {
+    const at = new Date("2026-11-10T23:00:00Z");
+    expect(nightTimesBetween(at, at)).toEqual([]);
+    expect(nightTimesBetween(new Date("2026-11-10T23:30:00Z"), new Date("2026-11-11T22:59:00Z"))).toEqual([]);
+    expect(nextNightTime(at).toISOString()).toBe("2026-11-11T23:00:00.000Z");
+  });
+
+  it("estimates how many nights the fire lasts", () => {
+    expect(nightsFireLasts({ fromNight: 1, activeMembers: 20, defense: 1e9, fireHp: 600, fireMax: 600 })).toBeNull();
+    expect(nightsFireLasts({ fromNight: 1, activeMembers: 20, defense: 0, fireHp: 600, fireMax: 600 })).toBe(4);
   });
 });

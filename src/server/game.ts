@@ -1,16 +1,28 @@
 import "server-only";
 import { randomInt } from "node:crypto";
 import {
+  ATTRIBUTE_KEYS,
   FARM,
+  NIGHT_WEAPONS,
   PROFESSIONS,
   RECIPES,
   RESOURCES,
   RESOURCE_KEYS,
   type Bag,
   type ProfessionKey,
+  type AttributeKey,
+  type Building,
+  type NightClassKey,
   type RecipeKey,
   type ResourceKey,
+  type SlotKey,
+  SLOT_KEYS,
+  TALENTS,
+  SLOTS,
+  TIERS,
 } from "@/game/config";
+import { attributePointsEarned, attributesError, gearUpgradeCost, nextTier, refineCost, talentsError, xpFor, type TalentPicks } from "@/game/character";
+import { fireMaxHp, hordeStrength, nextNightTime, nightsFireLasts } from "@/game/night";
 import {
   computeProduction,
   countProfessions,
@@ -20,17 +32,31 @@ import {
   professionChangeAvailableAt,
   professionChangeCost,
   recipeInputs,
+  bagPoints,
+  buildingCostScale,
   remainingForBuilding,
   workshopUpgradeCost,
 } from "@/game/rules";
 import { previousWeekStart, weekStart } from "@/game/week";
 import type { Sql } from "postgres";
 import { db, type Tx } from "./db";
+import {
+  activeCount,
+  attributesOf,
+  characterOf,
+  defenseFor,
+  loadoutOf,
+  powerOf as residentPowerOf,
+  resolvePendingNights,
+  type CharacterRow,
+  type LastNight,
+  type NightFarmRow,
+} from "./nights";
 
 /** Error with a player-facing message (pt-BR). */
 export class GameError extends Error {}
 
-interface PlayerRow {
+interface PlayerRow extends CharacterRow {
   id: string;
   user_id: string;
   farm_id: string;
@@ -42,11 +68,29 @@ interface PlayerRow {
   profession_changed_at: Date | null;
 }
 
-interface FarmRow {
+interface FarmRow extends NightFarmRow {
   id: string;
   name: string;
   invite_code: string;
   level: number;
+  last_night: LastNight | null;
+}
+
+/** A building's cost on this farm: it grows with the active members (#4, design §15.5). */
+function scaledBuilding(building: Building, activeMembers: number): Building {
+  const k = buildingCostScale(activeMembers);
+  const cost: Bag = {};
+  for (const [r, v] of Object.entries(building.cost) as [ResourceKey, number][]) cost[r] = Math.ceil(v * k);
+  return { ...building, cost };
+}
+
+async function activeMembers(tx: Sql | Tx, farmId: string, now: Date) {
+  const rows = await tx<{ last_collected_at: Date }[]>`SELECT last_collected_at FROM players WHERE farm_id = ${farmId}`;
+  return activeCount(rows, now);
+}
+
+async function addXp(tx: Tx, playerId: string, xp: number) {
+  if (xp > 0) await tx`UPDATE players SET xp = xp + ${xp} WHERE id = ${playerId}`;
 }
 
 // ---------- inventory helpers ----------
@@ -107,10 +151,12 @@ async function withFarmTx<T>(
   return db().begin(async (tx) => {
     const [p] = await tx<{ farm_id: string }[]>`SELECT farm_id FROM players WHERE user_id = ${userId}`;
     if (!p) throw new GameError("Você ainda não entrou em um sítio.");
-    const [farm] = await tx<FarmRow[]>`
-      SELECT id, name, invite_code, level FROM farms WHERE id = ${p.farm_id} FOR UPDATE`;
+    const [farm] = await tx<FarmRow[]>`SELECT * FROM farms WHERE id = ${p.farm_id} FOR UPDATE`;
+    const now = new Date();
+    // Attacks due since the last one happen first (they may wipe the farm).
+    await resolvePendingNights(tx, farm, now);
     const [player] = await tx<PlayerRow[]>`SELECT * FROM players WHERE user_id = ${userId} FOR UPDATE`;
-    return fn(tx, player, farm, new Date());
+    return fn(tx, player, farm, now);
   }) as Promise<T>;
 }
 
@@ -145,8 +191,10 @@ export async function createFarm(userId: string, farmName: string, p: NewPlayer)
     if ((await tx`SELECT 1 FROM players WHERE user_id = ${userId}`).length) {
       throw new GameError("Você já está em um sítio.");
     }
+    // First attack only on the following day's night: a day to get started.
+    const graceUntil = nextNightTime(new Date());
     const [farm] = await tx<{ id: string }[]>`
-      INSERT INTO farms (name, invite_code) VALUES (${farmName}, ${newInviteCode()}) RETURNING id`;
+      INSERT INTO farms (name, invite_code, last_night_at) VALUES (${farmName}, ${newInviteCode()}, ${graceUntil}) RETURNING id`;
     await insertPlayer(tx, userId, farm.id, p);
   });
 }
@@ -171,6 +219,7 @@ export async function joinFarm(userId: string, code: string, p: NewPlayer) {
 export async function collect(userId: string) {
   return withFarmTx(userId, async (tx, player, farm, now) => {
     const r = await settle(tx, player, farm.level, now);
+    await addXp(tx, player.id, xpFor("collect", r.units * RESOURCES[PROFESSIONS[player.profession].produces].points));
     return { units: r.units, capped: r.capped };
   });
 }
@@ -183,6 +232,7 @@ export async function craft(userId: string, recipeKey: RecipeKey, times: number)
     }
     await removeItems(tx, player.id, recipeInputs(recipeKey, times));
     await addItems(tx, player.id, { [recipe.output]: times });
+    await addXp(tx, player.id, xpFor("craft", times * RESOURCES[recipe.output].points));
   });
 }
 
@@ -200,8 +250,9 @@ export async function upgradeWorkshop(userId: string) {
 
 export async function donate(userId: string, resource: ResourceKey, qty: number) {
   return withFarmTx(userId, async (tx, player, farm, now) => {
-    const building = currentBuilding(farm.level);
-    if (!building) throw new GameError("Não há construção em andamento.");
+    const base = currentBuilding(farm.level);
+    if (!base) throw new GameError("Não há construção em andamento.");
+    const building = scaledBuilding(base, await activeMembers(tx, farm.id, now));
     const progress = await getProgress(tx, farm.id);
     const remaining = remainingForBuilding(building, progress)[resource] ?? 0;
     if (remaining <= 0) throw new GameError(`${building.name} não precisa mais de ${RESOURCES[resource].name}.`);
@@ -211,6 +262,7 @@ export async function donate(userId: string, resource: ResourceKey, qty: number)
       INSERT INTO farm_building_progress (farm_id, resource, qty) VALUES (${farm.id}, ${resource}, ${amount})
       ON CONFLICT (farm_id, resource) DO UPDATE SET qty = farm_building_progress.qty + EXCLUDED.qty`;
     const points = amount * RESOURCES[resource].points;
+    await addXp(tx, player.id, xpFor("donate", points));
     await tx`
       INSERT INTO donations (farm_id, player_id, resource, qty, points)
       VALUES (${farm.id}, ${player.id}, ${resource}, ${amount}, ${points})`;
@@ -284,6 +336,99 @@ export async function professionCountsByInvite(code: string) {
   return { counts, missing: missingProfessions(counts) };
 }
 
+// ---------- night & character (design §11, §12, §15) ----------
+
+/** Signs up for tonight's patrol (played the night mini-game). */
+export async function patrol(userId: string) {
+  return withFarmTx(userId, async (tx, player, farm) => {
+    const night = farm.nights_survived + 1;
+    if (player.patrol_night === night) throw new GameError("Você já fez a ronda de hoje.");
+    await tx`UPDATE players SET patrol_night = ${night} WHERE id = ${player.id}`;
+    return { night };
+  });
+}
+
+export async function upgradeGear(userId: string, slot: SlotKey) {
+  return withFarmTx(userId, async (tx, player) => {
+    const gear = { ...player.gear };
+    const cur = gear[slot] ?? { tier: "wood" as const, refine: 0 };
+    const cost = gearUpgradeCost(cur.tier);
+    const next = nextTier(cur.tier);
+    if (!cost || !next) throw new GameError("Esse item já está no tier máximo.");
+    await removeItems(tx, player.id, cost);
+    gear[slot] = { tier: next, refine: cur.refine };
+    await tx`UPDATE players SET gear = ${tx.json(gear as never)} WHERE id = ${player.id}`;
+    await addXp(tx, player.id, xpFor("craft", bagPoints(cost)));
+    return { tier: TIERS[next].name };
+  });
+}
+
+export async function refineGear(userId: string, slot: SlotKey) {
+  return withFarmTx(userId, async (tx, player) => {
+    const gear = { ...player.gear };
+    const cur = gear[slot] ?? { tier: "wood" as const, refine: 0 };
+    const cost = refineCost(cur.refine);
+    if (!cost) throw new GameError("Esse item já está no refino máximo.");
+    await removeItems(tx, player.id, cost);
+    gear[slot] = { tier: cur.tier, refine: cur.refine + 1 };
+    await tx`UPDATE players SET gear = ${tx.json(gear as never)} WHERE id = ${player.id}`;
+    await addXp(tx, player.id, xpFor("craft", bagPoints(cost)));
+    return { refine: cur.refine + 1 };
+  });
+}
+
+export async function addAttributePoint(userId: string, key: AttributeKey) {
+  return withFarmTx(userId, async (tx, player) => {
+    const c = characterOf(player);
+    const attrs = attributesOf(player);
+    attrs[key] += 1;
+    const err = attributesError(attrs, c.level);
+    if (err) throw new GameError(err);
+    await tx`UPDATE players SET attributes = ${tx.json(attrs as never)} WHERE id = ${player.id}`;
+  });
+}
+
+export async function pickTalent(userId: string, tier: number, option: 0 | 1) {
+  return withFarmTx(userId, async (tx, player) => {
+    const c = characterOf(player);
+    const picks: TalentPicks = [...(player.talents ?? [])];
+    while (picks.length <= tier) picks.push(null);
+    if (picks[tier] !== null) throw new GameError("Esse talento já foi escolhido nesta temporada.");
+    picks[tier] = option;
+    const err = talentsError(player.profession, picks, c.level);
+    if (err) throw new GameError(err);
+    await tx`UPDATE players SET talents = ${tx.json(picks as never)} WHERE id = ${player.id}`;
+    return TALENTS[player.profession][tier][option].name;
+  });
+}
+
+export async function setNightClass(userId: string, nightClass: NightClassKey) {
+  return withFarmTx(userId, async (tx, player) => {
+    await tx`UPDATE players SET night_class = ${nightClass} WHERE id = ${player.id}`;
+    return NIGHT_WEAPONS[nightClass].className;
+  });
+}
+
+/** Development only: pretend the last attack was a day earlier, so the next one is due now. */
+export async function devForceNight(userId: string) {
+  if (process.env.NODE_ENV === "production") throw new GameError("Indisponível.");
+  const [p] = await db()<{ farm_id: string }[]>`SELECT farm_id FROM players WHERE user_id = ${userId}`;
+  if (!p) throw new GameError("Você ainda não entrou em um sítio.");
+  return db().begin(async (tx) => {
+    const [farm] = await tx<FarmRow[]>`SELECT * FROM farms WHERE id = ${p.farm_id} FOR UPDATE`;
+    farm.last_night_at = new Date(farm.last_night_at.getTime() - 24 * 3_600_000);
+    return resolvePendingNights(tx, farm, new Date());
+  }) as Promise<LastNight | null>;
+}
+
+/** Applies attacks that are due (used before reading the game state). */
+async function resolveDueNights(farmId: string) {
+  await db().begin(async (tx) => {
+    const [farm] = await tx<FarmRow[]>`SELECT * FROM farms WHERE id = ${farmId} FOR UPDATE`;
+    await resolvePendingNights(tx, farm, new Date());
+  });
+}
+
 async function getProgress(tx: Sql | Tx, farmId: string): Promise<Bag> {
   const rows = await tx<{ resource: ResourceKey; qty: number }[]>`
     SELECT resource, qty FROM farm_building_progress WHERE farm_id = ${farmId}`;
@@ -314,6 +459,37 @@ export interface GameState {
     upgradeCost: Bag | null;
     /** Changing profession: what it costs now and when it is allowed (null = now). */
     professionChange: { cost: Bag; availableAt: string | null };
+    character: {
+      level: number;
+      xpIntoLevel: number;
+      xpForNext: number | null;
+      attributes: Record<AttributeKey, number>;
+      freePoints: number;
+      talents: TalentPicks;
+      bonuses: ReturnType<typeof characterOf>["bonuses"];
+      nightClass: NightClassKey;
+      gear: { slot: SlotKey; tier: string; refine: number; value: number; upgradeCost: Bag | null; refineCost: Bag | null }[];
+      /** Power at night if you patrol / if you rest. */
+      power: { patrol: number; rest: number };
+    };
+    patrolledTonight: boolean;
+  };
+  night: {
+    season: number;
+    /** Number of the next attack in this season. */
+    night: number;
+    nextAt: string;
+    fireHp: number;
+    fireMax: number;
+    horde: number;
+    /** Defense if the attack were now (who already patrolled counts ×1.5). */
+    defense: number;
+    /** Nights the fire lasts at this pace (null = it holds). */
+    lasts: number | null;
+    patrolled: number;
+    active: number;
+    last: LastNight | null;
+    seasons: { season: number; endedNight: number; endedAt: string }[];
   };
   inventory: Bag;
   farm: {
@@ -333,16 +509,20 @@ export interface GameState {
 
 export async function loadGameState(userId: string): Promise<GameState | null> {
   const sql = db();
-  const player = await getPlayer(userId);
-  if (!player) return null;
+  const first = await getPlayer(userId);
+  if (!first) return null;
+  await resolveDueNights(first.farm_id);
+  const player = (await getPlayer(userId))!;
   const now = new Date();
-  const [[farm], inventory, progress, members, completed] = await Promise.all([
-    sql<FarmRow[]>`SELECT id, name, invite_code, level FROM farms WHERE id = ${player.farm_id}`,
+  const [[farm], inventory, progress, members, completed, seasons] = await Promise.all([
+    sql<FarmRow[]>`SELECT * FROM farms WHERE id = ${player.farm_id}`,
     getInventory(sql, player.id),
     getProgress(sql, player.farm_id),
     sql<PlayerRow[]>`SELECT * FROM players WHERE farm_id = ${player.farm_id} ORDER BY created_at`,
     sql<{ building_key: string }[]>`
       SELECT building_key FROM farm_buildings WHERE farm_id = ${player.farm_id} ORDER BY completed_at`,
+    sql<{ season: number; ended_night: number; ended_at: Date }[]>`
+      SELECT season, ended_night, ended_at FROM seasons WHERE farm_id = ${player.farm_id} ORDER BY season DESC LIMIT 10`,
   ]);
 
   const rankingSince = async (from: Date | null, to: Date | null): Promise<RankingRow[]> => {
@@ -370,7 +550,15 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
     rankingSince(null, null),
   ]);
 
-  const building = currentBuilding(farm.level);
+  const active = activeCount(members, now);
+  const baseBuilding = currentBuilding(farm.level);
+  const building = baseBuilding ? scaledBuilding(baseBuilding, active) : null;
+  const tonight = farm.nights_survived + 1;
+  const fireMax = fireMaxHp(active, farm.level);
+  const fireHp = farm.fire_hp ?? fireMax;
+  const defense = defenseFor(members, tonight, farm.level);
+  const me = characterOf(player);
+  const loadout = loadoutOf(player);
   const professionCounts = countProfessions(members.map((m) => m.profession));
   const cleanInventory: Bag = {};
   for (const k of RESOURCE_KEYS) if (inventory[k]) cleanInventory[k] = inventory[k];
@@ -389,6 +577,46 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
         cost: professionChangeCost(player.profession),
         availableAt: professionChangeAvailableAt(player.profession_changed_at, now)?.toISOString() ?? null,
       },
+      character: {
+        level: me.level,
+        xpIntoLevel: Math.floor(me.xpIntoLevel),
+        xpForNext: me.xpForNext,
+        attributes: attributesOf(player),
+        freePoints: attributePointsEarned(me.level) - ATTRIBUTE_KEYS.reduce((n, k) => n + attributesOf(player)[k], 0),
+        talents: player.talents ?? [],
+        bonuses: me.bonuses,
+        nightClass: player.night_class,
+        gear: SLOT_KEYS.map((slot) => {
+          const it = loadout[slot]!;
+          return {
+            slot,
+            tier: it.tier,
+            refine: it.refine,
+            value: Math.round(SLOTS[slot].perPower * (TIERS[it.tier].power + it.refine * SLOTS[slot].refineStep) * 100) / 100,
+            upgradeCost: gearUpgradeCost(it.tier),
+            refineCost: refineCost(it.refine),
+          };
+        }),
+        power: {
+          patrol: Math.round(residentPowerOf(player, true)),
+          rest: Math.round(residentPowerOf(player, false)),
+        },
+      },
+      patrolledTonight: player.patrol_night === tonight,
+    },
+    night: {
+      season: farm.season,
+      night: tonight,
+      nextAt: nextNightTime(now).toISOString(),
+      fireHp,
+      fireMax,
+      horde: hordeStrength(tonight, active),
+      defense,
+      lasts: nightsFireLasts({ fromNight: tonight, activeMembers: active, defense, fireHp, fireMax }),
+      patrolled: members.filter((m) => m.patrol_night === tonight).length,
+      active,
+      last: farm.last_night,
+      seasons: seasons.map((x) => ({ season: x.season, endedNight: x.ended_night, endedAt: x.ended_at.toISOString() })),
     },
     inventory: cleanInventory,
     farm: {

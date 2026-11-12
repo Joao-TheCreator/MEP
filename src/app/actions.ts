@@ -4,7 +4,20 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { AVATAR_KEYS } from "@/art/avatars";
-import { PROFESSION_KEYS, PROFESSIONS, RECIPE_KEYS, RESOURCE_KEYS, RESOURCES } from "@/game/config";
+import {
+  ATTRIBUTES,
+  ATTRIBUTE_KEYS,
+  PROFESSION_KEYS,
+  PROFESSIONS,
+  RECIPE_KEYS,
+  RESOURCE_KEYS,
+  RESOURCES,
+  SLOTS,
+  SLOT_KEYS,
+  type AttributeKey,
+  type NightClassKey,
+  type SlotKey,
+} from "@/game/config";
 import { currentUser, destroySession, loginWithPassword, signupWithPassword } from "@/server/auth";
 import { passwordProblem } from "@/server/password";
 import * as game from "@/server/game";
@@ -168,5 +181,74 @@ export async function sendAction(toPlayerId: string, resource: string, amount: n
     const n = qty.parse(amount);
     await game.transfer(user.id, to, key, n);
     return `Enviado: ${n} ${RESOURCES[key].name}.`;
+  });
+}
+
+// ---------------- night & character (design §11, §12, §15) ----------------
+
+const slotKey = z.enum(SLOT_KEYS as [string, ...string[]]);
+const attributeKey = z.enum(ATTRIBUTE_KEYS as [string, ...string[]]);
+const nightClass = z.enum(["volley", "mattress"]);
+
+export async function patrolAction(): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = await game.patrol(user.id);
+    return `Ronda feita! Você defende a noite ${r.night} com força total.`;
+  });
+}
+
+export async function upgradeGearAction(slot: string): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = await game.upgradeGear(user.id, slotKey.parse(slot) as SlotKey);
+    return `${SLOTS[slot as SlotKey].label} agora é ${r.tier}!`;
+  });
+}
+
+export async function refineGearAction(slot: string): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = await game.refineGear(user.id, slotKey.parse(slot) as SlotKey);
+    return `${SLOTS[slot as SlotKey].label} refinado para +${r.refine}.`;
+  });
+}
+
+export async function attributeAction(key: string): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const k = attributeKey.parse(key) as AttributeKey;
+    await game.addAttributePoint(user.id, k);
+    return `+1 em ${ATTRIBUTES[k].name}.`;
+  });
+}
+
+export async function talentAction(tier: number, option: number): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const t = z.number().int().min(0).max(3).parse(tier);
+    const o = z.union([z.literal(0), z.literal(1)]).parse(option);
+    const name = await game.pickTalent(user.id, t, o);
+    return `Talento escolhido: ${name}.`;
+  });
+}
+
+export async function nightClassAction(cls: string): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const name = await game.setNightClass(user.id, nightClass.parse(cls) as NightClassKey);
+    return `Agora você é ${name} à noite.`;
+  });
+}
+
+/** Development only: makes tonight's attack happen now. */
+export async function devNightAction(): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    const r = await game.devForceNight(user.id);
+    if (!r) return "Nenhuma noite para resolver.";
+    return r.wiped
+      ? `A fogueira apagou na noite ${r.night}. Nova temporada!`
+      : `Noite ${r.night}: horda ${r.horde} × defesa ${r.defense}. Fogueira: ${r.fireHp}.`;
   });
 }
