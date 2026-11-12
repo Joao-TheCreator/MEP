@@ -1,8 +1,8 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { GROUND, MAP_H, MAP_W, farmItems, footY, type PlacedSprite } from "./FarmMap";
-import { SpriteRects } from "./pixel";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { GROUND, LANDMARKS, MAP_H, MAP_W, farmItems, footY, type PlaceKey, type PlacedSprite } from "./FarmMap";
+import { SpriteRects, spriteSize } from "./pixel";
 import { rng } from "./grid";
 import { WALKERS, WALKER_H, WALKER_W, type Direction } from "./walker";
 import type { AvatarKey } from "./avatars";
@@ -83,8 +83,28 @@ function directionOf(dx: number, dy: number): Direction {
 }
 
 /** Static scenery element, memoized so animation ticks don't re-render it. */
-const Scenery = memo(function Scenery({ item }: { item: PlacedSprite }) {
-  return <SpriteRects sprite={item.s} x={item.x} y={item.y} />;
+const Scenery = memo(function Scenery({
+  item,
+  label,
+  onPick,
+}: {
+  item: PlacedSprite;
+  label?: string;
+  onPick?: (place: PlaceKey) => void;
+}) {
+  if (!item.place || !onPick) return <SpriteRects sprite={item.s} x={item.x} y={item.y} />;
+  const place = item.place;
+  return (
+    <g
+      data-pick="place"
+      onClick={() => onPick(place)}
+      style={{ cursor: "pointer" }}
+      role="button"
+      aria-label={label ?? place}
+    >
+      <SpriteRects sprite={item.s} x={item.x} y={item.y} />
+    </g>
+  );
 });
 
 const Ground = memo(function Ground() {
@@ -110,12 +130,21 @@ export function FarmScene({
   highlightId,
   zoom = 2,
   showGraph = false,
+  selectedPlace,
+  onSelectPlace,
+  placeLabels,
 }: {
   completed: string[];
   building?: string | null;
   residents: Resident[];
   /** Resident to mark (usually the viewer). */
   highlightId?: string;
+  /** Building currently picked (controlled; omit to let the scene keep it). */
+  selectedPlace?: PlaceKey | null;
+  /** Called when the player taps a building (or the ground, with null). */
+  onSelectPlace?: (place: PlaceKey | null) => void;
+  /** Names shown in the bubble; landmarks have defaults. */
+  placeLabels?: Partial<Record<PlaceKey, string>>;
   /** How many times wider than the frame the map is drawn. */
   zoom?: number;
   /** Debug: draw the walk graph. */
@@ -125,6 +154,17 @@ export function FarmScene({
   const reduced = useReducedMotion();
   const scroller = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [ownPlace, setOwnPlace] = useState<PlaceKey | null>(null);
+  const place = selectedPlace !== undefined ? selectedPlace : ownPlace;
+  const pickPlace = useCallback(
+    (next: PlaceKey | null) => {
+      setOwnPlace(next);
+      onSelectPlace?.(next);
+      if (next) setSelected(null);
+    },
+    [onSelectPlace],
+  );
+  const labelOf = (k: PlaceKey) => placeLabels?.[k] ?? (k in LANDMARKS ? LANDMARKS[k as keyof typeof LANDMARKS].name : k);
 
   // movers live in a ref; a tick counter re-renders the people layer only
   const movers = useRef<Map<string, Mover>>(new Map());
@@ -223,7 +263,11 @@ export function FarmScene({
 
   type Layer = { feet: number; key: string; node: React.ReactNode };
   const layers: Layer[] = [
-    ...items.map((it, i) => ({ feet: footY(it), key: `s${i}`, node: <Scenery key={`s${i}`} item={it} /> })),
+    ...items.map((it, i) => ({
+      feet: footY(it),
+      key: `s${i}`,
+      node: <Scenery key={`s${i}`} item={it} label={it.place && labelOf(it.place)} onPick={pickPlace} />,
+    })),
     ...people.map((p) => ({
       feet: p.feet,
       key: `p${p.r.id}`,
@@ -231,7 +275,8 @@ export function FarmScene({
         <g
           key={`p${p.r.id}`}
           transform={`translate(${p.px} ${p.py}) scale(${SCALE})`}
-          onClick={() => setSelected((s) => (s === p.r.id ? null : p.r.id))}
+          data-pick="person"
+          onClick={() => { setSelected((s) => (s === p.r.id ? null : p.r.id)); pickPlace(null); }}
           style={{ cursor: "pointer" }}
           role="button"
           aria-label={p.r.name}
@@ -247,6 +292,10 @@ export function FarmScene({
   ].sort((a, b) => a.feet - b.feet);
 
   const sel = selected ? people.find((p) => p.r.id === selected) : null;
+  // bubble anchor for the picked building: the first item of that place
+  // (a construction site gets the pin too)
+  const pickedItem = place ? items.find((it) => it.place === place) : null;
+  const pickedSize = pickedItem ? spriteSize(pickedItem.s) : null;
 
   return (
     <div className="farm-scene" ref={scroller}>
@@ -256,7 +305,11 @@ export function FarmScene({
           shapeRendering="crispEdges"
           role="img"
           aria-label="Mapa do sítio com os moradores"
-          onClick={(e) => { if (e.target === e.currentTarget) setSelected(null); }}
+          onClick={(e) => {
+            if ((e.target as Element).closest?.("[data-pick]")) return;
+            setSelected(null);
+            pickPlace(null);
+          }}
         >
           <Ground />
           {layers.map((l) => l.node)}
@@ -269,6 +322,18 @@ export function FarmScene({
             </g>
           )}
         </svg>
+        {pickedItem && pickedSize && (
+          <div
+            className={`farm-bubble ${pickedItem.y < 12 ? "below" : ""}`}
+            style={{
+              left: `${((pickedItem.x + pickedSize.w / 2) / MAP_W) * 100}%`,
+              top: `${((pickedItem.y < 12 ? pickedItem.y + pickedSize.h + 1 : pickedItem.y - 1) / MAP_H) * 100}%`,
+            }}
+            role="status"
+          >
+            <b>{labelOf(pickedItem.place!)}</b>
+          </div>
+        )}
         {sel && (
           <div
             className={`farm-bubble ${sel.py < 16 ? "below" : ""}`}

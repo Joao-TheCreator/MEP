@@ -111,30 +111,42 @@ export interface FarmMapProps {
   className?: string;
 }
 
+export type PlaceKey = "temple" | "pool" | "house" | "annex" | "well" | "barn" | "mill";
+
+/** Fixed landmarks of the farm (the community buildings come from game config). */
+export const LANDMARKS: Record<"temple" | "pool" | "house" | "annex", { name: string; description: string }> = {
+  temple: { name: "Templo Dae Han", description: "O coração do sítio: tijolo aparente, arcos brancos e telhado cinza." },
+  pool: { name: "Piscina", description: "Cercadinha, no meio do pátio. Lugar de reunião nos dias de calor." },
+  house: { name: "Casinha", description: "Casa de telhado laranja onde o pessoal descansa." },
+  annex: { name: "Anexo", description: "O outro prédio do sítio, lá no canto da mata." },
+};
+
 export interface PlacedSprite {
   s: SpriteDef;
   x: number;
   y: number;
+  /** Set when the sprite is a building the player can tap. */
+  place?: PlaceKey;
 }
 
 /** Everything standing on the ground, sorted back-to-front (painter's order). */
 export function farmItems(completed: string[], building?: string | null): PlacedSprite[] {
   const slot = (key: "well" | "barn" | "mill", sprite: SpriteDef): PlacedSprite | null => {
     const p = PLACES[key];
-    if (completed.includes(key)) return { s: sprite, ...p };
+    if (completed.includes(key)) return { s: sprite, ...p, place: key };
     if (building === key) {
       const { h } = spriteSize(sprite);
-      return { s: CONSTRUCTION, x: p.x, y: p.y + h - spriteSize(CONSTRUCTION).h };
+      return { s: CONSTRUCTION, x: p.x, y: p.y + h - spriteSize(CONSTRUCTION).h, place: key };
     }
     return null;
   };
   const items = [
     ...TREES,
-    { s: TEMPLE, ...PLACES.temple },
-    { s: POOL, ...PLACES.pool },
-    { s: HOUSE, ...PLACES.houseA },
-    { s: HOUSE, ...PLACES.houseB },
-    { s: ANNEX, ...PLACES.annex },
+    { s: TEMPLE, ...PLACES.temple, place: "temple" as const },
+    { s: POOL, ...PLACES.pool, place: "pool" as const },
+    { s: HOUSE, ...PLACES.houseA, place: "house" as const },
+    { s: HOUSE, ...PLACES.houseB, place: "house" as const },
+    { s: ANNEX, ...PLACES.annex, place: "annex" as const },
     slot("well", WELL),
     slot("barn", BARN),
     slot("mill", MILL),
