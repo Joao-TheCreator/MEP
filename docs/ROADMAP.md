@@ -183,7 +183,9 @@ Cada fase = 1 PR pequeno, com lint + testes + build, mostrado no localhost. Áre
 | **4. Ronda que vale** | Simulação vai para `src/game/patrol.ts`; servidor sorteia semente e reexecuta; estrelas dão moedas e loot; expedições. | R + J | 3 |
 | **5. Papéis (leva 1)** | Atirador, Tanque, Suporte em `night.ts`; composição na tela da Noite; simulador com papéis. | R + J | 4 |
 | **6. Equipamento por espaço + obras novas** | Custos por espaço; 5 obras; sprites das obras; rebalanceamento completo. | R + J | 5 |
-| **7. Telas na horizontal** | Abas na lateral, Herói com os 8 espaços em volta do boneco (prévia do Rodrigo), mochila. | J | decisão #22 |
+| **7a. Telas deitadas: casca, Sítio e Herói** | Abas na lateral, barra de uma linha, Sítio com painel lateral, Herói com os 8 espaços em volta do boneco. Funciona deitado e em pé. As outras abas ficam em duas colunas, com rolagem. | J | decisão #22 |
+| **7b. Telas deitadas: o resto** | Oficina, Noite, Estoque/Vendinha e Ranking cabendo sem rolar; ajuste fino do minijogo deitado. | J | 7a |
+| **7c. Mochila** | Itens soltos (loot de equipamento na ronda), equipar e guardar, "Equipar o melhor". Pede regra, servidor e banco. | R + J | 7a |
 | **8. Papéis (leva 2)** | Cozinheira e Lanterna com minijogo próprio; Violão ganha o dele. | J + R | 5 |
 | **9. Polimento** | Avisos no celular (armazém cheio, horda, fogueira baixa), sons, trailer atualizado, ajuste fino com dados reais do grupo. | J + R | 2 |
 

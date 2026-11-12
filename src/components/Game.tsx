@@ -75,6 +75,7 @@ export function Game({ state }: { state: GameState }) {
           <span className="hint-arrow" aria-hidden>▸</span>
           <span className="grow">{hint.text}</span>
         </button>
+        <div className={`screen screen-${tab}`}>
         {tab === "farm" && <FarmScreen {...ctx} />}
         {tab === "work" && <WorkScreen {...ctx} />}
         {tab === "hero" && <HeroScreen {...ctx} />}
@@ -89,6 +90,7 @@ export function Game({ state }: { state: GameState }) {
           </>
         )}
         {tab === "rank" && <RankingScreen {...ctx} />}
+        </div>
       </main>
       <div className="pops" aria-live="polite">
         {pops.map((p) => (
