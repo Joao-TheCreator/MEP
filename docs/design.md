@@ -530,3 +530,34 @@ O mínimo para o grupo jogar o ciclo inteiro:
 | 6 | Tela do wipe ("A fogueira apagou na noite 28") e histórico de temporadas | João |
 
 Fora do MVP: loot da noite, chefes, mistérios, Brasa (tier lendário), caixa do sítio.
+
+## 16. Moedas e a Vendinha (proposta do João, em revisão)
+
+**Cada um pode vender o que produz por moedas e comprar qualquer material na loja do
+jogo, pagando 4× mais caro do que trocando com um amigo.** O objetivo é ninguém ficar
+travado quando falta uma profissão (#10) ou quando os outros somem, sem tirar o valor da
+cooperação. Código: `src/game/market.ts`; números em `MARKET` (`config.ts`).
+
+- **1 moeda = 1 ponto de valor** (os pontos da §3).
+- **Vender:** 50% do valor (arredonda para baixo no total). 10 Tábuas = 20 moedas.
+- **Comprar:** 200% do valor (arredonda para cima). 10 Tábuas = 80 moedas.
+- A loja vende **só os 9 recursos**. Equipamento nunca: continua sendo melhorado e
+  refinado pelo jogador (é o que fica no wipe).
+- **Limite de compra por dia** (dia de Brasília), em pontos de valor comprado:
+  `150 + 15 × nível`. No nível 1 são 165 pontos: cabe **uma** melhoria para Bronze
+  (109 pontos, 218 moedas), não duas.
+- Vender **não** dá XP nem pontos no ranking. Doar continua sendo o que conta.
+- **Wipe:** as moedas zeram.
+
+Garantias travadas em teste (`market.test.ts`):
+- comprar custa pelo menos 4× o que vender paga;
+- **sem dinheiro infinito:** em toda receita, vender o produto rende menos do que comprar
+  os insumos;
+- a compra máxima nunca passa das moedas nem do limite do dia.
+
+Referência de ritmo: um Agricultor nível 1 vende um armazém cheio (8 h, 480 Grãos) por
+240 moedas, o bastante para uma melhoria Bronze por dia jogando sozinho. Quem troca com
+os amigos faz a mesma melhoria com um quarto do esforço.
+
+O plano completo das próximas mecânicas (tarefas do dia, ronda que rende, papéis da
+noite, equipamento por espaço, obras novas, sítio vivo) está em `docs/ROADMAP.md`.
