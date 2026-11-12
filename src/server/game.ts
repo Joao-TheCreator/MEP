@@ -13,8 +13,12 @@ import {
 } from "@/game/config";
 import {
   computeProduction,
+  countProfessions,
   currentBuilding,
   isBuildingComplete,
+  missingProfessions,
+  professionChangeAvailableAt,
+  professionChangeCost,
   recipeInputs,
   remainingForBuilding,
   workshopUpgradeCost,
@@ -35,6 +39,7 @@ interface PlayerRow {
   profession: ProfessionKey;
   workshop_level: number;
   last_collected_at: Date;
+  profession_changed_at: Date | null;
 }
 
 interface FarmRow {
@@ -239,6 +244,46 @@ export async function transfer(userId: string, toPlayerId: string, resource: Res
   });
 }
 
+export async function changeProfession(userId: string, to: ProfessionKey) {
+  return withFarmTx(userId, async (tx, player, farm, now) => {
+    const from = player.profession;
+    if (to === from) throw new GameError(`Você já é ${PROFESSIONS[to].name}.`);
+    const availableAt = professionChangeAvailableAt(player.profession_changed_at, now);
+    if (availableAt) {
+      const h = Math.ceil((availableAt.getTime() - now.getTime()) / 3_600_000);
+      throw new GameError(`Você trocou de profissão há pouco. Tente de novo em ${h} h.`);
+    }
+    // Pending production belongs to the old profession: settle it first.
+    await settle(tx, player, farm.level, now);
+    await removeItems(tx, player.id, professionChangeCost(from));
+    // Each profession keeps its own workshop level.
+    await tx`
+      INSERT INTO player_workshops (player_id, profession, level)
+      VALUES (${player.id}, ${from}, ${player.workshop_level})
+      ON CONFLICT (player_id, profession) DO UPDATE SET level = EXCLUDED.level`;
+    const [saved] = await tx<{ level: number }[]>`
+      SELECT level FROM player_workshops WHERE player_id = ${player.id} AND profession = ${to}`;
+    const level = saved?.level ?? 1;
+    await tx`
+      UPDATE players
+      SET profession = ${to}, workshop_level = ${level},
+          last_collected_at = ${now}, profession_changed_at = ${now}
+      WHERE id = ${player.id}`;
+    return { profession: to, workshopLevel: level };
+  });
+}
+
+/** Residents per profession on the farm with this invite code (for the join screen). */
+export async function professionCountsByInvite(code: string) {
+  const [farm] = await db()<{ id: string }[]>`
+    SELECT id FROM farms WHERE invite_code = ${code.trim().toUpperCase()}`;
+  if (!farm) return null;
+  const rows = await db()<{ profession: ProfessionKey }[]>`
+    SELECT profession FROM players WHERE farm_id = ${farm.id}`;
+  const counts = countProfessions(rows.map((r) => r.profession));
+  return { counts, missing: missingProfessions(counts) };
+}
+
 async function getProgress(tx: Sql | Tx, farmId: string): Promise<Bag> {
   const rows = await tx<{ resource: ResourceKey; qty: number }[]>`
     SELECT resource, qty FROM farm_building_progress WHERE farm_id = ${farmId}`;
@@ -267,6 +312,8 @@ export interface GameState {
     workshopLevel: number;
     lastCollectedAt: string;
     upgradeCost: Bag | null;
+    /** Changing profession: what it costs now and when it is allowed (null = now). */
+    professionChange: { cost: Bag; availableAt: string | null };
   };
   inventory: Bag;
   farm: {
@@ -276,6 +323,9 @@ export interface GameState {
     building: { key: string; name: string; description: string; cost: Bag } | null;
     progress: Bag;
     completed: string[];
+    /** Residents per profession, and the professions nobody has (the farm may get stuck). */
+    professionCounts: Record<ProfessionKey, number>;
+    missingProfessions: ProfessionKey[];
   };
   members: { id: string; name: string; avatar: string; profession: ProfessionKey; workshopLevel: number }[];
   ranking: { week: RankingRow[]; lastWeek: RankingRow[]; allTime: RankingRow[] };
@@ -321,6 +371,7 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
   ]);
 
   const building = currentBuilding(farm.level);
+  const professionCounts = countProfessions(members.map((m) => m.profession));
   const cleanInventory: Bag = {};
   for (const k of RESOURCE_KEYS) if (inventory[k]) cleanInventory[k] = inventory[k];
 
@@ -334,6 +385,10 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       workshopLevel: player.workshop_level,
       lastCollectedAt: player.last_collected_at.toISOString(),
       upgradeCost: workshopUpgradeCost(player.profession, player.workshop_level),
+      professionChange: {
+        cost: professionChangeCost(player.profession),
+        availableAt: professionChangeAvailableAt(player.profession_changed_at, now)?.toISOString() ?? null,
+      },
     },
     inventory: cleanInventory,
     farm: {
@@ -345,6 +400,8 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
         : null,
       progress,
       completed: completed.map((c) => c.building_key),
+      professionCounts,
+      missingProfessions: missingProfessions(professionCounts),
     },
     members: members.map((m) => ({
       id: m.id,

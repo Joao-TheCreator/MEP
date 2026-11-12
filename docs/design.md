@@ -35,10 +35,35 @@ outro no mesmo commit (há um teste que confere as tabelas principais).
 | Cozinheiro (`cook`)        | —                | Refeição (Grãos + Leite + Queijo)| ❌ (pós-MVP, liberado pelo Moinho) |
 | Comerciante (`merchant`)   | Moedas           | Trocas entre recursos            | ❌ (pós-MVP) |
 
-- A profissão é escolhida ao entrar no sítio e **não muda** no MVP.
+- A profissão é escolhida ao entrar no sítio e pode ser trocada depois (§2.1).
 - Ao entrar, cada pessoa também escolhe o seu **boneco pixelado** (feitos a partir
   das fotos do grupo; um por pessoa em cada sítio). Ver `docs/visual-identity.md`.
 - Várias pessoas podem ter a mesma profissão.
+
+### 2.1 Profissões em falta e troca de profissão
+
+**Problema:** a Ferramenta só sai do Ferreiro e é exigida pelo Arado, pela Serraria
+e pelo Moinho. Sem nenhum Ferreiro, o sítio empaca. O mesmo vale, em menor grau,
+para qualquer profissão sem ninguém.
+
+**Profissões em falta:** o servidor conta quantos moradores têm cada profissão
+(`GameState.farm.professionCounts`) e lista as que ninguém tem
+(`farm.missingProfessions`). A tela de entrar num sítio pode consultar a mesma
+contagem pelo código de convite (`professionCountsAction`) e destacar a que falta.
+
+**Troca de profissão** (meio-termo do brainstorm: um queria livre, o outro com custo):
+
+| Regra | Valor |
+| --- | --- |
+| Custo | **4 h** da produção base da profissão **atual**, no recurso bruto dela: 240 Grãos, 120 Leite, 240 Madeira ou 120 Minério (= 240 pontos para todos) |
+| Espera entre trocas | **24 h** |
+| Produção pendente | É liquidada na profissão antiga antes da troca |
+| Nível da oficina | Cada profissão guarda o seu. Voltar para uma antiga recupera o nível dela; uma nova começa no 1 |
+| Estoque | Fica todo com o jogador |
+
+O custo é pago no recurso da própria profissão, então dá para trocar sem depender de
+ninguém (importante justamente quando falta uma profissão). Os números ficam em
+`PROFESSION_CHANGE` (`src/game/config.ts`).
 
 ---
 
@@ -237,3 +262,149 @@ jogadores; doação às 3 construções; ranking semanal; PWA instalável.
 **Pós-MVP (ideias):** Cozinheiro e Comerciante; refeições como "buff" temporário;
 eventos semanais (ex.: "semana da colheita", 2× Grãos); conquistas; notificações
 push quando o armazém encher; histórico de construções com quem mais ajudou.
+
+---
+
+## 11. Personagem (proposta do Rodrigo, em revisão)
+
+Cada morador evolui também **sozinho**, além do sítio coletivo. Tudo o que vem
+daqui é somado num único conjunto de bônus pessoais (`characterBonuses` em
+`src/game/character.ts`) e tem **teto** (`BONUS_CAPS`), para não estourar a
+economia nem a escala de custo das construções (#4).
+
+### 11.1 Nível e experiência
+
+- Nível 1 a **30**. Ir do nível 1 ao 2 custa **100 XP**; cada nível seguinte custa
+  **20% mais** (nível 10 → 11: 516 XP).
+- XP por ponto de valor movimentado: **doar 1**, **fabricar 0,5** (sobre os pontos do
+  que saiu), **coletar 0,1**. **Enviar a um amigo não dá XP** (dois amigos poderiam
+  ficar mandando um para o outro sem fim).
+- O XP é guardado **com fração** (coletar 1 ponto dá 0,1 XP), para que coletar várias
+  vezes pouco renda o mesmo que coletar uma vez muito.
+- Ritmo esperado: quem doa metade do que produz chega ao nível 10 em uns 3 dias e ao
+  20 em umas 3 semanas.
+
+### 11.2 Atributos
+
+Cada nível dá **1 ponto** para distribuir. Máximo de **20 pontos** por atributo.
+Cada atributo vale de dia (sítio) e de noite (ronda, #14):
+
+| Atributo | Por ponto, de dia | Por ponto, à noite |
+| --- | --- | --- |
+| Força | +1,5% de produção | +3% de dano |
+| Resistência | +12 min de armazém | +4% de vida |
+| Agilidade | +3% de recuperação de energia | +2% de velocidade de ataque |
+| Ofício | +1,5% de chance de fabricar em dobro | +3% de carga do especial |
+| Espírito | +2% do que você doa conta na obra (não no ranking) | +4% de cura nos amigos |
+
+**Energia:** 0 a 100, recupera 10 por hora. **Não** limita coletar, fabricar nem
+doar (isso brigaria com o idle). Vai ser gasta na ronda da noite e em tarefas
+especiais.
+
+### 11.3 Árvore de habilidades (talentos)
+
+Por profissão, **4 níveis de talento**, que abrem nos níveis **5, 10, 15 e 20**.
+Em cada um, escolhe-se **1 entre 2**: um caminho "para mim" (produção, armazém) e
+outro "para o grupo" (doações rendem mais na obra, fabricar em dobro). Lista completa
+em `TALENTS` (`src/game/config.ts`). Exemplo, Agricultor:
+
+| Nível | Para mim | Para o grupo |
+| --- | --- | --- |
+| 5 | Mão boa: +8% produção | Colheita farta: +60 min armazém |
+| 10 | Ração caprichada: +6% fabricar em dobro | Primícias: doações +6% na obra |
+| 15 | De sol a sol: +12% produção | Mutirão: doações +10% na obra |
+| 20 | Safra recorde: +15% produção, +60 min | Celeiro do povo: doações +15% na obra |
+
+### 11.4 Tetos dos bônus pessoais
+
+| Bônus | Teto |
+| --- | --- |
+| Produção | +100% |
+| Armazém | +360 min (6 h) |
+| Fabricar em dobro | 50% |
+| Doação rende na obra | +60% |
+
+## 12. Equipamento
+
+### 12.1 Espaços e itens
+
+O personagem tem **8 espaços**. Cada item aumenta **um** bônus pessoal:
+
+| Espaço | Item | Bônus | Por ponto de poder |
+| --- | --- | --- | --- |
+| Cabeça | Chapéu de palha | Armazém | 3 min |
+| Corpo | Camiseta do acampamento | Vida (noite) | 1% |
+| Mãos | Luvas de trabalho | Fabricar em dobro | 0,25% |
+| Pés | Botina | Energia por hora | 0,5% |
+| Ferramenta | Enxada, Balde, Machado ou Martelo (da profissão) | Produção | 1% |
+| Arma | Bola de vôlei, Colchonete, Violão, Concha ou Lanterna (da classe da noite) | Dano (noite) | 1% |
+| Broche | Broche da chama | Doação rende na obra | 0,3% |
+| Pulseira | Pulseira de miçangas | Carga do especial | 0,5% |
+
+`bônus do item = por ponto × (poder do tier + refino × passo)`. O passo é 1, e 2 na
+Arma. A **ferramenta só funciona na profissão dela** (um Machado na mão de um
+Agricultor não faz nada; serve para guardar caso ele troque de profissão, §2.1).
+
+### 12.2 Tiers
+
+| Tier | Poder | Custo para chegar (a partir do anterior) |
+| --- | --- | --- |
+| Madeira | 0 | — (inicial) |
+| Bronze | 4 | 10 Tábuas, 4 Barras de ferro, 1 Ferramenta |
+| Ferro | 8 | 19 Tábuas, 8 Barras, 2 Ferramentas |
+| Prata | 13 | 37 Tábuas, 15 Barras, 4 Ferramentas |
+| Ouro | 19 | 69 Tábuas, 28 Barras, 7 Ferramentas |
+| Diamante | 26 | 131 Tábuas, 53 Barras, 14 Ferramentas |
+| Brasa (lendária) | 34 | bloqueada: vai custar Brasas do grupo (#17) |
+
+### 12.3 Refino (+1 a +10)
+
+Cada item pode ser refinado até **+10**. Ir de +r para +(r+1) custa
+`2 × (r+1)` Barras de ferro e `⌈(r+1) ÷ 2⌉` Ferramentas (de +0 para +1: 2 Barras e
+1 Ferramenta; de +9 para +10: 20 Barras e 5 Ferramentas). Sem chance de falhar e
+sem perder o item: o jogo é para ser gostoso, não para frustrar.
+
+### 12.4 Mochila e sugestão automática
+
+- Mochila com páginas de **24 espaços**; as páginas I e II já vêm abertas, a III abre
+  no **nível 15**.
+- O jogador **não precisa caçar item melhor**: o servidor compara cada espaço com a
+  mochila (`gearSuggestions`) e a tela marca o espaço com uma seta "tem melhor na
+  mochila". Um botão **Equipar o melhor** (`equipBest`) troca tudo de uma vez e
+  guarda os itens antigos na mochila.
+
+Os custos usam Tábua, Barra e Ferramenta de propósito: todo mundo precisa do
+Carpinteiro e do Ferreiro para se equipar.
+
+## 13. Caixa do sítio (ideia, ainda não decidida)
+
+Um dinheiro **do grupo**, e o grupo decide como gastar.
+
+- **Entra:** venda de excedente no "mercado da cidade" (preço fixo, abaixo do valor
+  em pontos), parte do que o Comerciante ganha, prêmios de eventos e da Noite da Horda.
+- **Sai, por votação:** buff temporário para todos (ex.: +10% por 24 h), reparos
+  depois de uma horda perdida (#17), adiantar uma obra, festas e eventos.
+- **Votação:** qualquer morador propõe (o que, quanto, por quê); fica aberta 24 h;
+  passa com maioria de quem votou e pelo menos 30% dos ativos votando. Cada um
+  propõe no máximo 1 vez por dia. Tudo fica num **livro-caixa** visível para todos.
+
+## 14. Tempo de jogo (orçamento)
+
+O jogo é para ser **resenha entre amigos**, não um segundo emprego. Toda mecânica
+nova precisa caber neste orçamento, por pessoa:
+
+| Momento | Tempo | O que faz |
+| --- | --- | --- |
+| Entrada rápida (2–3× por dia) | ~1 min | Coletar, fabricar, doar, ver o sítio |
+| Ronda da noite (#14, opcional) | 1–2 min | Uma ronda automática; só escolhe a hora do especial. Quem não faz a ronda **não ganha as recompensas da noite**, mas também não é punido |
+| Personagem (de vez em quando) | ~1 min | Ponto de atributo, talento, "Equipar o melhor" |
+| **Total no dia** | **≤ 5 min** | |
+
+Regras que protegem esse orçamento:
+- Faltar um dia **não pune** de forma que obrigue a voltar: o armazém só para de
+  encher, e a ameaça (#17) sobe devagar e sempre com aviso.
+- Tudo que pode ser automático é automático: equipar o melhor, liquidar produção,
+  sugerir o que doar.
+- Nenhuma mecânica exige estar online numa hora certa (a Noite da Horda dá 48 h de
+  prazo e cada um joga quando puder).
+- Avisos no celular só para o que importa (armazém cheio, obra pronta, horda marcada).
