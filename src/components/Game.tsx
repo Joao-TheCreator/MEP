@@ -11,7 +11,7 @@ import {
 } from "@/game/config";
 import { computeProduction, hasEnough, maxCraftable, ratePerHour, storageHours } from "@/game/rules";
 import type { GameState, RankingRow } from "@/server/game";
-import { FarmMap } from "@/art/FarmMap";
+import { FarmScene } from "@/art/FarmScene";
 import { Sprite } from "@/art/pixel";
 import { LOGO, RESOURCE_SPRITES } from "@/art/sprites";
 import {
@@ -98,13 +98,22 @@ interface Ctx {
 // ------------------------------------------------------------ Sítio
 
 function FarmTab({ state, act, pending }: Ctx) {
-  const { farm, inventory } = state;
+  const { farm, inventory, members, me } = state;
   const b = farm.building;
+  const residents = members.map((m) => ({
+    id: m.id,
+    name: m.id === me.id ? `${m.name} (você)` : m.name,
+    avatar: m.avatar,
+    subtitle: `${PROFESSIONS[m.profession].name} · nv. ${m.workshopLevel}`,
+  }));
   return (
     <>
       <section className="panel map-frame">
-        <FarmMap completed={farm.completed} building={b?.key} />
+        <FarmScene completed={farm.completed} building={b?.key} residents={residents} highlightId={me.id} />
       </section>
+      <p className="small" style={{ color: "var(--paper-dark)", margin: "-4px 2px 0" }}>
+        Arraste para explorar · toque em alguém para ver quem é
+      </p>
       {b ? (
         <section className="panel stack">
           <h2>Construindo: {b.name}</h2>

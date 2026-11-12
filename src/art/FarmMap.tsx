@@ -10,8 +10,8 @@ import {
  * Coreana: open field top-left, dense forest around, pool in the middle,
  * the main temple just below it, small tile-roof houses to the south-west.
  */
-const MAP_W = 160;
-const MAP_H = 120;
+export const MAP_W = 160;
+export const MAP_H = 120;
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -100,7 +100,7 @@ function trees() {
   return out;
 }
 
-const GROUND = ground();
+export const GROUND = ground();
 const TREES = trees();
 
 export interface FarmMapProps {
@@ -111,8 +111,15 @@ export interface FarmMapProps {
   className?: string;
 }
 
-export function FarmMap({ completed, building, className }: FarmMapProps) {
-  const slot = (key: "well" | "barn" | "mill", sprite: SpriteDef) => {
+export interface PlacedSprite {
+  s: SpriteDef;
+  x: number;
+  y: number;
+}
+
+/** Everything standing on the ground, sorted back-to-front (painter's order). */
+export function farmItems(completed: string[], building?: string | null): PlacedSprite[] {
+  const slot = (key: "well" | "barn" | "mill", sprite: SpriteDef): PlacedSprite | null => {
     const p = PLACES[key];
     if (completed.includes(key)) return { s: sprite, ...p };
     if (building === key) {
@@ -131,10 +138,18 @@ export function FarmMap({ completed, building, className }: FarmMapProps) {
     slot("well", WELL),
     slot("barn", BARN),
     slot("mill", MILL),
-  ].filter(Boolean) as { s: SpriteDef; x: number; y: number }[];
-  // painter's order by sprite bottom
-  items.sort((a, b) => a.y + spriteSize(a.s).h - (b.y + spriteSize(b.s).h));
+  ].filter(Boolean) as PlacedSprite[];
+  return items.sort((a, b) => a.y + spriteSize(a.s).h - (b.y + spriteSize(b.s).h));
+}
 
+/** Bottom edge (the "feet") of a placed sprite, used for depth sorting. */
+export function footY(it: PlacedSprite) {
+  return it.y + spriteSize(it.s).h;
+}
+
+/** Static map (no people). The live version with residents is FarmScene. */
+export function FarmMap({ completed, building, className }: FarmMapProps) {
+  const items = farmItems(completed, building);
   return (
     <svg
       viewBox={`0 0 ${MAP_W} ${MAP_H}`}

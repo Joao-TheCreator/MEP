@@ -1,5 +1,6 @@
 import { RESOURCES, RESOURCE_KEYS } from "@/game/config";
 import { FarmMap } from "@/art/FarmMap";
+import { FarmScene } from "@/art/FarmScene";
 import { Sprite } from "@/art/pixel";
 import { AVATARS, AVATAR_KEYS, AVATAR_SPRITES } from "@/art/avatars";
 import { Walker } from "@/art/WalkerSprite";
@@ -60,6 +61,14 @@ export default function ArtPage() {
         </div>
       </section>
 
+      <section className="panel map-frame">
+        <FarmScene
+          completed={["well"]}
+          building="barn"
+          residents={AVATAR_KEYS.map((k) => ({ id: k, name: AVATARS[k].name, avatar: k }))}
+          showGraph={process.env.NODE_ENV !== "production"}
+        />
+      </section>
       <section className="panel map-frame"><FarmMap completed={[]} building="well" /></section>
       <section className="panel map-frame"><FarmMap completed={["well", "barn", "mill"]} /></section>
 
