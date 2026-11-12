@@ -601,3 +601,53 @@ e `ENERGY` (`config.ts`).
   nunca falta; ela passa a limitar de verdade quando entrarem as expedições (rondas extras
   por loot, roadmap fase 4): a barra cheia paga três.
 - Energia **não** limita coletar, fabricar, doar nem vender.
+
+## 18. Ronda que vale e expedições (proposta do João, em revisão)
+
+**O resultado da ronda agora conta: as estrelas dão moedas e materiais, e é o servidor
+que calcula.** Código: `src/game/patrol.ts` (a simulação saiu de `src/prototype/night/`);
+números em `PATROL` (`config.ts`).
+
+### 18.1 Conferido no servidor
+
+A ronda é uma simulação **determinística**, em passos fixos de 0,05 s: a mesma semente e
+os mesmos instantes do especial dão sempre a mesma noite.
+
+1. **Começar:** o servidor cobra a energia (30), sorteia a **semente** e guarda a ronda
+   (`patrol_runs`).
+2. **Jogar:** o celular roda a simulação com essa semente e anota em que passo cada
+   especial foi usado.
+3. **Terminar:** o celular manda só a lista de passos. O servidor **joga a noite de novo**
+   (`replayPatrol`) e calcula as estrelas e as recompensas. Especial pedido sem estar
+   carregado é ignorado, como no celular.
+
+O celular nunca diz quantas estrelas fez. Uma ronda aberta vale por 30 minutos; começar
+outra fecha a anterior sem recompensa (a energia já foi gasta).
+
+### 18.2 Recompensas
+
+- **Moedas:** `estrelas × (10 + 2 × noite)`. Ronda perdida (0 estrelas): 5 moedas.
+- **Loot:** um sorteio **por estrela**. Cada sorteio dá um material que vale cerca de
+  `12 + 3 × noite` pontos (pelo menos 1 unidade). Pesos do sorteio:
+
+| Material | Peso | Material | Peso |
+| --- | --- | --- | --- |
+| Tábua | 26 | Madeira | 6 |
+| Barra de ferro | 18 | Grãos | 6 |
+| Ração | 16 | Minério | 4 |
+| Queijo | 14 | Leite | 4 |
+| Ferramenta | 6 | | |
+
+- O sorteio usa a semente da ronda: é o servidor que decide, e repetir não muda.
+- É a fonte **solo** dos materiais que hoje só vêm de outra profissão.
+- O XP da ronda continua vindo na virada da noite, se o sítio aguentar (§15.4).
+
+### 18.3 Ronda do dia e expedições
+
+- A **primeira** ronda da noite é a **ronda do dia**: terminá-la (ganhando ou perdendo)
+  é o que coloca o morador na defesa com ×1,5.
+- Depois dela, até **3 expedições por dia**: rondas extras só pelas recompensas. Cada
+  uma custa 30 de energia, então a barra cheia (100) paga a ronda e duas expedições; a
+  terceira pede esperar a energia voltar.
+- Teste trava o teto: a ronda mais três expedições com 3 estrelas na noite 1 valem menos
+  que meio dia de produção de um nível 1.

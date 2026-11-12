@@ -20,6 +20,7 @@ import {
 } from "@/game/config";
 import { currentUser, destroySession, loginWithPassword, signupWithPassword } from "@/server/auth";
 import { passwordProblem } from "@/server/password";
+import { validSpecialTicks } from "@/game/patrol";
 import * as game from "@/server/game";
 
 export type ActionResult = { ok: boolean; message: string };
@@ -190,11 +191,40 @@ const slotKey = z.enum(SLOT_KEYS as [string, ...string[]]);
 const attributeKey = z.enum(ATTRIBUTE_KEYS as [string, ...string[]]);
 const nightClass = z.enum(["volley", "mattress"]);
 
-export async function patrolAction(): Promise<ActionResult> {
+export type StartPatrolResult = ActionResult & { run?: { runId: string; seed: number; cls: "volei" | "colchonete"; kind: string } };
+
+/** Starts a patrol (spends energy) and returns the seed the mini-game must use. */
+export async function startPatrolAction(): Promise<StartPatrolResult> {
+  const user = await requireUser();
+  try {
+    const run = await game.startPatrol(user.id);
+    revalidatePath("/");
+    return { ok: true, message: run.kind === "patrol" ? "Boa ronda!" : "Boa expedição!", run };
+  } catch (e) {
+    if (e instanceof game.GameError) return { ok: false, message: e.message };
+    console.error(e);
+    return { ok: false, message: "Algo deu errado. Tente de novo." };
+  }
+}
+
+/** Ends a patrol: the server replays it and pays the rewards. */
+export async function finishPatrolAction(runId: string, specialTicks: number[]): Promise<ActionResult> {
   const user = await requireUser();
   return run(async () => {
-    const r = await game.patrol(user.id);
-    return `Ronda feita! Você defende a noite ${r.night} com força total.`;
+    const id = z.string().uuid().parse(runId);
+    if (!validSpecialTicks(specialTicks)) throw new game.GameError("Ronda inválida.");
+    const r = await game.finishPatrol(user.id, id, specialTicks);
+    const loot = (Object.entries(r.loot) as [(typeof RESOURCE_KEYS)[number], number][])
+      .map(([k, n]) => `${n} ${RESOURCES[k].name}`)
+      .join(", ");
+    const stars = r.stars === 1 ? "1 estrela" : `${r.stars} estrelas`;
+    const gain = `+${r.coins} moedas${loot ? ` e ${loot}` : ""}`;
+    if (r.kind === "patrol") {
+      return r.counts
+        ? `Ronda feita com ${stars}: ${gain}. Você defende a noite ${r.night} com força total.`
+        : `Ronda feita com ${stars}: ${gain}.`;
+    }
+    return `Expedição com ${stars}: ${gain}.`;
   });
 }
 
