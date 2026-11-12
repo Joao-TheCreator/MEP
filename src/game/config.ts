@@ -543,3 +543,26 @@ export const DAILY_TASKS = {
   sellBase: 30,
   sellPerLevel: 5,
 } as const;
+
+// ============================================================================
+// Patrol rewards and expeditions (design §18).
+// ============================================================================
+
+export const PATROL = {
+  /** Coins per star: base + perNight × night number. */
+  coinsPerStarBase: 10,
+  coinsPerStarPerNight: 2,
+  /** Coins for a patrol that lost the fire of the mini-game (0 stars). */
+  consolationCoins: 5,
+  /** Value in points of each loot roll (one per star): base + perNight × night. */
+  lootPointsBase: 12,
+  lootPointsPerNight: 3,
+  /** Chance weights of each material in a loot roll (made goods are likelier than raw ones). */
+  lootWeights: { plank: 26, iron_bar: 18, feed: 16, cheese: 14, tool: 6, wood: 6, grain: 6, ore: 4, milk: 4 } as Bag,
+  /** Extra patrols a day, only for loot (each costs ENERGY.patrolCost). */
+  expeditionsPerDay: 3,
+  /** A started patrol must be finished within this many minutes. */
+  runMinutes: 30,
+  /** Specials accepted in one run (far above what a night allows). */
+  maxSpecials: 200,
+} as const;

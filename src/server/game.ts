@@ -4,6 +4,7 @@ import {
   ATTRIBUTE_KEYS,
   ENERGY,
   FARM,
+  PATROL,
   NIGHT_WEAPONS,
   PROFESSIONS,
   RECIPES,
@@ -50,6 +51,7 @@ import {
   type DailyCounters,
   type TaskKind,
 } from "@/game/tasks";
+import { patrolRewards, replayPatrol, type HeroClass } from "@/game/patrol";
 import { previousWeekStart, weekStart } from "@/game/week";
 import type { Sql } from "postgres";
 import { db, type Tx } from "./db";
@@ -481,21 +483,71 @@ export async function buyFromMarket(userId: string, resource: ResourceKey, qty: 
 
 // ---------- night & character (design §11, §12, §15) ----------
 
-/** Signs up for tonight's patrol (played the night mini-game). */
-export async function patrol(userId: string) {
+/** Class used in the patrol mini-game for each night class. */
+function patrolClass(player: PlayerRow): HeroClass {
+  return player.night_class === "mattress" ? "colchonete" : "volei";
+}
+
+async function expeditionsToday(tx: Sql | Tx, playerId: string, now: Date): Promise<number> {
+  const [row] = await tx<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM patrol_runs
+    WHERE player_id = ${playerId} AND day = ${gameDay(now)} AND kind = 'expedition'`;
+  return row.count;
+}
+
+/**
+ * Starts a patrol: spends the energy and draws the seed. The first one of the
+ * night counts for the defense; the others are expeditions, only for loot.
+ */
+export async function startPatrol(userId: string) {
   return withFarmTx(userId, async (tx, player, farm, now) => {
     const night = farm.nights_survived + 1;
-    if (player.patrol_night === night) throw new GameError("Você já fez a ronda de hoje.");
+    const kind = player.patrol_night === night ? "expedition" : "patrol";
+    if (kind === "expedition" && (await expeditionsToday(tx, player.id, now)) >= PATROL.expeditionsPerDay) {
+      throw new GameError("Você já fez todas as expedições de hoje. Amanhã tem mais.");
+    }
     const energy = energyOf(player, now);
     if (energy < ENERGY.patrolCost) {
       const wait = minutesUntilEnergy(energy, ENERGY.patrolCost, characterOf(player).bonuses.energyRegenPct);
       throw new GameError(`Você está sem energia para a ronda. Volte em ${wait} min.`);
     }
-    await tx`
-      UPDATE players SET patrol_night = ${night}, energy = ${energy - ENERGY.patrolCost}, energy_at = ${now}
-      WHERE id = ${player.id}`;
+    // an abandoned run is closed, so only one is open at a time
+    await tx`UPDATE patrol_runs SET finished_at = ${now}, stars = 0 WHERE player_id = ${player.id} AND finished_at IS NULL`;
+    await tx`UPDATE players SET energy = ${energy - ENERGY.patrolCost}, energy_at = ${now} WHERE id = ${player.id}`;
+    const cls = patrolClass(player);
+    const seed = randomInt(1, 2_000_000_000);
+    const [run] = await tx<{ id: string }[]>`
+      INSERT INTO patrol_runs (player_id, day, night, kind, cls, seed)
+      VALUES (${player.id}, ${gameDay(now)}, ${night}, ${kind}, ${cls}, ${seed}) RETURNING id`;
+    return { runId: run.id, seed, cls, kind };
+  });
+}
+
+/**
+ * Ends a patrol: replays it from the seed with the special ticks the phone
+ * sent, and pays what the replay earned. Finishing the night's patrol (won
+ * or lost) is what counts for the defense.
+ */
+export async function finishPatrol(userId: string, runId: string, specialTicks: number[]) {
+  return withFarmTx(userId, async (tx, player, farm, now) => {
+    const [run] = await tx<{ id: string; night: number; kind: string; cls: HeroClass; seed: number; created_at: Date }[]>`
+      SELECT * FROM patrol_runs WHERE id = ${runId} AND player_id = ${player.id} AND finished_at IS NULL FOR UPDATE`;
+    if (!run) throw new GameError("Essa ronda não está mais aberta.");
+    if (now.getTime() - run.created_at.getTime() > PATROL.runMinutes * 60_000) {
+      await tx`UPDATE patrol_runs SET finished_at = ${now}, stars = 0 WHERE id = ${run.id}`;
+      throw new GameError("Essa ronda demorou demais e foi encerrada.");
+    }
+    const result = replayPatrol(run.cls, run.seed, specialTicks);
+    const night = farm.nights_survived + 1;
+    const rewards = patrolRewards(result.stars, night, run.seed);
+    await tx`UPDATE patrol_runs SET finished_at = ${now}, stars = ${result.stars} WHERE id = ${run.id}`;
+    await tx`UPDATE players SET coins = coins + ${rewards.coins} WHERE id = ${player.id}`;
+    await addItems(tx, player.id, rewards.loot);
+    // a wipe between start and end would have reset the season: only count the same night
+    const counts = run.kind === "patrol" && run.night === night && player.patrol_night !== night;
+    if (counts) await tx`UPDATE players SET patrol_night = ${night} WHERE id = ${player.id}`;
     await bump(tx, player, farm.level, now, "patrol", 1);
-    return { night };
+    return { ...result, ...rewards, kind: run.kind, counts, night };
   });
 }
 
@@ -653,6 +705,8 @@ export interface GameState {
     lasts: number | null;
     patrolled: number;
     active: number;
+    /** Extra patrols (loot only) still available today. */
+    expeditionsLeft: number;
     last: LastNight | null;
     seasons: { season: number; endedNight: number; endedAt: string }[];
   };
@@ -807,6 +861,7 @@ export async function loadGameState(userId: string): Promise<GameState | null> {
       defense,
       lasts: nightsFireLasts({ fromNight: tonight, activeMembers: active, defense, fireHp, fireMax }),
       patrolled: members.filter((m) => m.patrol_night === tonight).length,
+      expeditionsLeft: Math.max(0, PATROL.expeditionsPerDay - (await expeditionsToday(sql, player.id, now))),
       active,
       last: farm.last_night,
       seasons: seasons.map((x) => ({ season: x.season, endedNight: x.ended_night, endedAt: x.ended_at.toISOString() })),

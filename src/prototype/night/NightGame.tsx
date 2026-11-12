@@ -164,11 +164,14 @@ function Arena({ s, avatar }: { s: NightState; avatar: AvatarKey }) {
 export interface NightGameProps {
   fixedAvatar?: AvatarKey;
   fixedClass?: HeroClass;
-  onFinish?: (won: boolean) => void;
+  /** Seed drawn by the server for this run (embedded patrols). */
+  seed?: number;
+  /** Called once when the night ends, with the steps at which the special was fired. */
+  onFinish?: (won: boolean, specialTicks: number[]) => void;
   onClose?: () => void;
 }
 
-export function NightGame({ fixedAvatar, fixedClass, onFinish, onClose }: NightGameProps = {}) {
+export function NightGame({ fixedAvatar, fixedClass, seed, onFinish, onClose }: NightGameProps = {}) {
   const embedded = !!(fixedAvatar && fixedClass);
   const [screen, setScreen] = useState<"pick" | "play">(embedded ? "play" : "pick");
   const [cls, setCls] = useState<HeroClass>(fixedClass ?? "volei");
@@ -177,7 +180,7 @@ export function NightGame({ fixedAvatar, fixedClass, onFinish, onClose }: NightG
   const [paused, setPaused] = useState(false);
   const night = useRef<NightState | null>(null);
   // embedded patrol: start the night once, on first render
-  if (embedded && night.current === null) night.current = createNight(fixedClass!, Math.floor(Math.random() * 1e6));
+  if (embedded && night.current === null) night.current = createNight(fixedClass!, seed ?? 1);
   const [, setFrame] = useState(0);
   const reported = useRef(false);
 
@@ -204,7 +207,7 @@ export function NightGame({ fixedAvatar, fixedClass, onFinish, onClose }: NightG
   useEffect(() => {
     if (!over || reported.current || !night.current) return;
     reported.current = true;
-    onFinish?.(night.current.phase === "won");
+    onFinish?.(night.current.phase === "won", [...night.current.specialTicks]);
   }, [over, onFinish]);
 
   const special = useCallback(() => {
@@ -307,12 +310,12 @@ export function NightGame({ fixedAvatar, fixedClass, onFinish, onClose }: NightG
           <p>{result.mood}</p>
           <p className="small muted">
             {embedded
-              ? "Ronda registrada: hoje às 20h você defende a fogueira com força total."
+              ? "O servidor conferiu a sua ronda e já entregou as moedas e o que você achou na mata."
               : result.tiredPercent > 0 ? `Amanhã: ${AVATARS[avatar].name} produz ${result.tiredPercent}% menos.` : "Amanhã: produção normal."}
             {" "}Inimigos derrotados: {s.kills} · Especiais usados: {s.specials}
           </p>
           <div className="row" style={{ gap: 8 }}>
-            <button className="btn big" onClick={start}>Jogar de novo</button>
+            {!embedded && <button className="btn big" onClick={start}>Jogar de novo</button>}
             {embedded
               ? <button className="btn big secondary" onClick={onClose}>Voltar</button>
               : <button className="btn big secondary" onClick={() => setScreen("pick")}>Trocar classe</button>}

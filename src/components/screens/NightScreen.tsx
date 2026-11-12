@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { AvatarKey } from "@/art/avatars";
 import { NightGame } from "@/prototype/night/NightGame";
-import { devNightAction, patrolAction } from "@/app/actions";
+import { devNightAction, finishPatrolAction, startPatrolAction, type StartPatrolResult } from "@/app/actions";
 import type { ScreenProps } from "./types";
 
 const fmt = (n: number) => n.toLocaleString("pt-BR");
@@ -20,25 +20,46 @@ function untilText(target: Date, now: Date) {
  */
 export function NightScreen({ state, now, act, pending }: ScreenProps) {
   const { night, me } = state;
-  const [playing, setPlaying] = useState(false);
+  const [run, setRun] = useState<NonNullable<StartPatrolResult["run"]> | null>(null);
+  const [starting, setStarting] = useState(false);
   const holds = night.defense >= night.horde;
   // not enough energy for today's patrol (training after it is free)
-  const tired = !me.patrolledTonight && me.energy.now < me.energy.patrolCost;
+  const tired = me.energy.now < me.energy.patrolCost;
   const next = new Date(night.nextAt);
   const firePct = Math.round((night.fireHp / night.fireMax) * 100);
 
-  if (playing) {
+  // the server spends the energy and draws the seed; then the mini-game plays it
+  const begin = async () => {
+    setStarting(true);
+    const r = await startPatrolAction();
+    setStarting(false);
+    if (r.ok && r.run) setRun(r.run);
+    else act(async () => r);
+  };
+
+  if (run) {
     return (
       <div className="night">
         <NightGame
+          key={run.runId}
           fixedAvatar={me.avatar as AvatarKey}
-          fixedClass={me.character.nightClass === "mattress" ? "colchonete" : "volei"}
-          onFinish={() => { if (!me.patrolledTonight) act(patrolAction); }}
-          onClose={() => setPlaying(false)}
+          fixedClass={run.cls}
+          seed={run.seed}
+          onFinish={(_won, ticks) => act(() => finishPatrolAction(run.runId, ticks))}
+          onClose={() => setRun(null)}
         />
       </div>
     );
   }
+
+  const canExplore = me.patrolledTonight && night.expeditionsLeft > 0;
+  const label = starting
+    ? "Preparando…"
+    : !me.patrolledTonight
+      ? tired ? "Sem energia para a ronda" : "Fazer a ronda"
+      : night.expeditionsLeft === 0
+        ? "Expedições de hoje feitas"
+        : tired ? "Sem energia para a expedição" : `Sair em expedição (${night.expeditionsLeft} hoje)`;
 
   return (
     <>
@@ -82,9 +103,13 @@ export function NightScreen({ state, now, act, pending }: ScreenProps) {
             (você tem {me.energy.now} de {me.energy.max}; volta 10 por hora).
           </p>
         )}
-        <button className="btn big" disabled={pending || tired} onClick={() => setPlaying(true)}>
-          {me.patrolledTonight ? "Jogar de novo (treino)" : tired ? "Sem energia para a ronda" : "Fazer a ronda"}
+<button className="btn big" disabled={pending || starting || tired || (me.patrolledTonight && !canExplore)} onClick={begin}>
+          {label}
         </button>
+        <p className="small muted">
+          As estrelas da ronda dão moedas e materiais achados na mata. Depois da ronda do dia, você ainda pode sair em até
+          3 expedições, só pelo que achar. Cada saída custa {me.energy.patrolCost} de energia.
+        </p>
         {process.env.NODE_ENV !== "production" && (
           <button className="btn small secondary" disabled={pending} onClick={() => act(devNightAction)}>
             Teste: fazer a noite acontecer agora
