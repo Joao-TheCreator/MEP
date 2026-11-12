@@ -2,15 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { z } from "zod";
 import { AVATAR_KEYS } from "@/art/avatars";
 import { PROFESSION_KEYS, RECIPE_KEYS, RESOURCE_KEYS, RESOURCES } from "@/game/config";
-import { consumeLoginToken, createLoginToken, currentUser, destroySession, normalizeEmail } from "@/server/auth";
-import { sendMagicLink } from "@/server/email";
+import { currentUser, destroySession, loginWithPassword, signupWithPassword } from "@/server/auth";
+import { passwordProblem } from "@/server/password";
 import * as game from "@/server/game";
 
-export type ActionResult = { ok: boolean; message: string; devLink?: string };
+export type ActionResult = { ok: boolean; message: string };
 
 async function requireUser() {
   const user = await currentUser();
@@ -36,30 +35,29 @@ const qty = z.coerce.number().int().min(1).max(1_000_000);
 
 // ---------------- auth ----------------
 
-export async function requestLogin(_: ActionResult | null, form: FormData): Promise<ActionResult> {
-  const parsed = z.string().email().max(200).safeParse(form.get("email"));
-  if (!parsed.success) return { ok: false, message: "Digite um e-mail válido." };
-  const email = normalizeEmail(parsed.data);
-  const token = await createLoginToken(email);
-  if (!token) return { ok: false, message: "Muitos pedidos. Espere alguns minutos e tente de novo." };
+const passwordField = z.string().max(200);
 
-  const h = await headers();
-  const base = process.env.APP_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
-  const link = `${base}/auth/verify?token=${token}`;
-  try {
-    await sendMagicLink(email, link);
-  } catch (e) {
-    console.error(e);
-    return { ok: false, message: "Não conseguimos enviar o e-mail agora." };
-  }
-  const devLink = !process.env.RESEND_API_KEY && process.env.NODE_ENV !== "production" ? link : undefined;
-  return { ok: true, message: "Pronto! Confira seu e-mail e toque no link para entrar.", devLink };
+export async function login(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const password = passwordField.safeParse(form.get("password"));
+  if (!password.success || !password.data) return { ok: false, message: "Digite sua senha." };
+  const outcome = await loginWithPassword(password.data);
+  if (outcome === "throttled") return { ok: false, message: "Muitas tentativas. Espere alguns minutos e tente de novo." };
+  if (outcome === "wrong") return { ok: false, message: "Senha não encontrada. Confira ou crie seu acesso." };
+  redirect("/");
 }
 
-export async function verifyLogin(form: FormData) {
-  const token = z.string().min(20).max(100).safeParse(form.get("token"));
-  if (!token.success || !(await consumeLoginToken(token.data))) redirect("/auth/verify?error=1");
-  redirect("/");
+export async function signup(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const password = passwordField.safeParse(form.get("password"));
+  const confirm = form.get("confirm");
+  if (!password.success) return { ok: false, message: "Digite uma senha." };
+  const problem = passwordProblem(password.data);
+  if (problem) return { ok: false, message: problem };
+  if (confirm !== password.data) return { ok: false, message: "As duas senhas estão diferentes." };
+  const outcome = await signupWithPassword(password.data);
+  if (outcome === "throttled") return { ok: false, message: "Muitas tentativas. Espere alguns minutos e tente de novo." };
+  // Same answer as an easy password: don't confirm that someone else uses it.
+  if (outcome === "taken") return { ok: false, message: "Essa senha não pode ser usada. Escolha outra." };
+  redirect("/onboarding");
 }
 
 export async function logout() {
