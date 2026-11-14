@@ -22,7 +22,7 @@ import {
   type SlotKey,
 } from "@/game/config";
 import { currentUser, destroySession, loginWithPassword, signupWithPassword } from "@/server/auth";
-import { passwordProblem } from "@/server/password";
+import { passwordProblem, usernameProblem } from "@/server/password";
 import { validSpecialTicks, type HeroClass } from "@/game/patrol";
 import * as game from "@/server/game";
 import * as notices from "@/server/notices";
@@ -54,27 +54,33 @@ const qty = z.coerce.number().int().min(1).max(1_000_000);
 // ---------------- auth ----------------
 
 const passwordField = z.string().max(200);
+const usernameField = z.string().max(60);
 
 export async function login(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const username = usernameField.safeParse(form.get("username"));
   const password = passwordField.safeParse(form.get("password"));
+  if (!username.success || !username.data.trim()) return { ok: false, message: "Digite seu nome." };
   if (!password.success || !password.data) return { ok: false, message: "Digite sua senha." };
-  const outcome = await loginWithPassword(password.data);
+  const outcome = await loginWithPassword(username.data, password.data);
   if (outcome === "throttled") return { ok: false, message: "Muitas tentativas. Espere alguns minutos e tente de novo." };
-  if (outcome === "wrong") return { ok: false, message: "Senha não encontrada. Confira ou crie seu acesso." };
+  if (outcome === "wrong") return { ok: false, message: "Nome ou senha incorretos." };
   redirect("/");
 }
 
 export async function signup(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const username = usernameField.safeParse(form.get("username"));
   const password = passwordField.safeParse(form.get("password"));
   const confirm = form.get("confirm");
+  if (!username.success) return { ok: false, message: "Escolha um nome." };
+  const nameProblem = usernameProblem(username.data);
+  if (nameProblem) return { ok: false, message: nameProblem };
   if (!password.success) return { ok: false, message: "Digite uma senha." };
-  const problem = passwordProblem(password.data);
+  const problem = passwordProblem(password.data, username.data);
   if (problem) return { ok: false, message: problem };
   if (confirm !== password.data) return { ok: false, message: "As duas senhas estão diferentes." };
-  const outcome = await signupWithPassword(password.data);
+  const outcome = await signupWithPassword(username.data, password.data);
   if (outcome === "throttled") return { ok: false, message: "Muitas tentativas. Espere alguns minutos e tente de novo." };
-  // Same answer as an easy password: don't confirm that someone else uses it.
-  if (outcome === "taken") return { ok: false, message: "Essa senha não pode ser usada. Escolha outra." };
+  if (outcome === "taken") return { ok: false, message: "Esse nome já está em uso. Escolha outro." };
   redirect("/onboarding");
 }
 

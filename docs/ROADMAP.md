@@ -178,7 +178,7 @@ Cada fase = 1 PR pequeno, com lint + testes + build, mostrado no localhost. Áre
 | **1. Moedas e Vendinha** | Regras `market.ts` + testes; migração 005 (moedas, compras do dia); ações vender/comprar; aba **Vendinha** junto do Estoque. | R + J | 0 |
 | **1b. Sítio vivo** | Fogueira no mapa, mapa escurece à noite, moradores perto do local de trabalho, locais das profissões desenhados. | J | 0 |
 | **1c. Jogabilidade** | Dica do próximo passo, animações de recompensa, coletar pelo mapa, "doar o que falta" e "vender o excedente". | J | 1 |
-| **2. Deploy de teste** | Vercel + Neon + `AUTH_SECRET` (#3). Grupo joga o dia + mercado de verdade. | João cria contas | 1 |
+| **2. Deploy de teste** | Vercel + Neon (#3). Grupo joga o dia + mercado de verdade. | João cria contas | 1 |
 | **3. Tarefas do dia e energia** | `tasks.ts` + testes; contadores diários; painel de tarefas no Sítio; barra de energia. | R + J | 1 |
 | **4. Ronda que vale** | Simulação vai para `src/game/patrol.ts`; servidor sorteia semente e reexecuta; estrelas dão moedas e loot; expedições. | R + J | 3 |
 | **5. Papéis (leva 1)** | Atirador, Tanque, Suporte em `night.ts`; composição na tela da Noite; simulador com papéis. | R + J | 4 |

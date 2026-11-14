@@ -246,12 +246,13 @@ Depois do Moinho, no MVP o sítio fica no nível 4 ("Em breve: novas construçõ
   ações de um mesmo sítio são serializadas; sem condição de corrida.
 - Estoque tem `CHECK (qty >= 0)` no banco como última barreira.
 - Entradas validadas com `zod` (inteiros positivos, chaves conhecidas, limites).
-- Login por senha pessoal, sem e-mail: a pessoa digita só a senha, que a
-  identifica. Por isso a senha é única no sítio todo e fica guardada como
-  HMAC-SHA256 com `AUTH_SECRET` (não dá para reverter sem o segredo do servidor).
-  Mínimo de 6 caracteres, senhas óbvias recusadas, no máximo 10 tentativas
-  (entrar ou criar) por IP a cada 15 min. Se a senha escolhida já existe, a
-  resposta é a mesma de uma senha fraca, para não confirmar a senha de ninguém.
+- Login por **nome + senha**, sem e-mail. O nome (3 a 20 letras sem acento,
+  números, `.`, `_` ou `-`, sem diferença entre maiúscula e minúscula) é único e
+  não é segredo; a senha fica guardada com `scrypt` e sal aleatório, então duas
+  senhas iguais ficam diferentes no banco e ninguém é achado pela senha.
+  Mínimo de 6 caracteres, senhas óbvias (e igual ao nome) recusadas, no máximo 10
+  tentativas a cada 15 min **por IP e por nome**. Errar o nome ou a senha dá a
+  mesma resposta ("Nome ou senha incorretos") e leva o mesmo tempo.
   Sessão em cookie `httpOnly` por 30 dias. Esqueceu a senha: por enquanto não há
   recuperação (ver pendências).
 
@@ -259,7 +260,7 @@ Depois do Moinho, no MVP o sítio fica no nível 4 ("Em breve: novas construçõ
 
 ## 10. Escopo
 
-**MVP (este marco):** login por senha pessoal; criar/entrar em sítio por código de
+**MVP (este marco):** login por nome + senha; criar/entrar em sítio por código de
 convite; escolha de boneco; 4 profissões; inventário; coleta offline; receitas; oficinas; envio entre
 jogadores; doação às 3 construções; ranking semanal; PWA instalável.
 

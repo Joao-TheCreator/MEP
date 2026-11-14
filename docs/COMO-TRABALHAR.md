@@ -56,8 +56,9 @@ npm run dev
 ```
 
 O `db:seed` recria o sítio de demonstração (código `DEMO01`) a cada execução. Para entrar,
-abra http://localhost:3000/login e digite a senha de quem você quer ser:
-`<chave-do-boneco>123` (ex.: `joao-pedro123`, `rodrigo123`).
+abra http://localhost:3000/login e digite o nome e a senha de quem você quer ser:
+nome `<chave-do-boneco>` e senha `<chave-do-boneco>123` (ex.: `rodrigo` / `rodrigo123`).
+Depois de rodar a migração 010, rode o `db:seed` de novo (as contas antigas não têm nome).
 
 ## Regras de ouro
 

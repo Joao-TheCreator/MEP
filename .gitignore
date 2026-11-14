@@ -8,3 +8,6 @@ next-env.d.ts
 .vercel
 .DS_Store
 coverage/
+
+# local Postgres (scripts/local-db.mjs)
+.pgdata/
