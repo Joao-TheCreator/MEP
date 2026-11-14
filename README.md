@@ -21,15 +21,16 @@ npm run db:seed    # opcional: sítio de demonstração (senhas impressas no ter
 npm run dev
 ```
 
-Abra http://localhost:3000. Para entrar, cada pessoa digita só a sua senha
-pessoal (criada na primeira vez em "Criar meu acesso"). O `db:seed` cria os 20
-moradores com a senha `<chave-do-boneco>123` (ex.: `rodrigo123`).
+Abra http://localhost:3000. Para entrar, cada pessoa digita o seu nome e a sua
+senha (criados na primeira vez em "Criar meu acesso"). O `db:seed` cria os 20
+moradores com o nome `<chave-do-boneco>` e a senha `<chave-do-boneco>123`
+(ex.: nome `rodrigo`, senha `rodrigo123`).
 
 ## Deploy na Vercel
 
 1. Importe o repositório na Vercel.
 2. Crie um banco (Neon pela integração da Vercel) e configure `DATABASE_URL`
-   (URL *pooled*) e `AUTH_SECRET` (16+ caracteres aleatórios: `openssl rand -base64 32`).
+   (URL *pooled*).
 3. Rode as migrações apontando para o banco de produção:
    `DATABASE_URL=... npm run db:migrate`.
 

@@ -2,12 +2,11 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { db } from "./db";
-import { authSecret, passwordLookup } from "./password";
+import { DUMMY_HASH, hashPassword, normalizeUsername, verifyPassword } from "./password";
 
 /**
- * Login by personal password: each person types only their own password,
- * which identifies them (stored as a keyed HMAC, unique). Guessing is
- * throttled per IP.
+ * Login by name + password (design §9). The password is stored with scrypt and a
+ * salt. Guessing is throttled per IP and per name.
  */
 
 export const SESSION_COOKIE = "sitio_session";
@@ -20,18 +19,21 @@ const newToken = () => randomBytes(32).toString("base64url");
 
 async function clientIp(): Promise<string> {
   const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "local";
+  // On Vercel x-real-ip is set by the platform; the first x-forwarded-for entry may come from the client.
+  return h.get("x-real-ip") || h.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
 }
 
-/** Records an attempt for this IP. Returns false when it is over the limit. */
-async function allowAttempt(): Promise<boolean> {
+/** Records an attempt for this IP and name. Returns false when either is over the limit. */
+async function allowAttempt(username: string): Promise<boolean> {
   const ip = await clientIp();
   const sql = db();
-  const [{ count }] = await sql<{ count: number }[]>`
-    SELECT count(*)::int AS count FROM login_attempts
-    WHERE ip = ${ip} AND created_at > now() - ${ATTEMPT_WINDOW}::interval`;
-  if (count >= MAX_ATTEMPTS_PER_WINDOW) return false;
-  await sql`INSERT INTO login_attempts (ip) VALUES (${ip})`;
+  const [{ byIp, byName }] = await sql<{ byIp: number; byName: number }[]>`
+    SELECT count(*) FILTER (WHERE ip = ${ip})::int AS "byIp",
+           count(*) FILTER (WHERE username = ${username})::int AS "byName"
+    FROM login_attempts
+    WHERE created_at > now() - ${ATTEMPT_WINDOW}::interval AND (ip = ${ip} OR username = ${username})`;
+  if (byIp >= MAX_ATTEMPTS_PER_WINDOW || byName >= MAX_ATTEMPTS_PER_WINDOW) return false;
+  await sql`INSERT INTO login_attempts (ip, username) VALUES (${ip}, ${username})`;
   // keep the table small
   await sql`DELETE FROM login_attempts WHERE created_at < now() - interval '1 day'`;
   return true;
@@ -55,24 +57,29 @@ async function startSession(userId: string) {
 
 export type LoginOutcome = "ok" | "wrong" | "throttled";
 
-/** Logs in whoever owns this password. */
-export async function loginWithPassword(password: string): Promise<LoginOutcome> {
-  if (!(await allowAttempt())) return "throttled";
-  const rows = await db()<{ id: string }[]>`
-    SELECT id FROM users WHERE password_lookup = ${passwordLookup(authSecret(), password)}`;
-  if (rows.length === 0) return "wrong";
-  await startSession(rows[0].id);
+/** Logs in with name + password. A wrong name and a wrong password look the same. */
+export async function loginWithPassword(name: string, password: string): Promise<LoginOutcome> {
+  const username = normalizeUsername(name);
+  if (!(await allowAttempt(username))) return "throttled";
+  const rows = await db()<{ id: string; password_hash: string | null }[]>`
+    SELECT id, password_hash FROM users WHERE username = ${username}`;
+  const user = rows[0];
+  // Always run scrypt, so a missing name takes as long as a wrong password.
+  const ok = await verifyPassword(password, user?.password_hash ?? DUMMY_HASH);
+  if (!user || !ok) return "wrong";
+  await startSession(user.id);
   return "ok";
 }
 
 export type SignupOutcome = "ok" | "taken" | "throttled";
 
-/** Creates a new person with this password and logs them in. */
-export async function signupWithPassword(password: string): Promise<SignupOutcome> {
-  if (!(await allowAttempt())) return "throttled";
+/** Creates a person with this name and password and logs them in. */
+export async function signupWithPassword(name: string, password: string): Promise<SignupOutcome> {
+  const username = normalizeUsername(name);
+  if (!(await allowAttempt(username))) return "throttled";
   const rows = await db()<{ id: string }[]>`
-    INSERT INTO users (password_lookup) VALUES (${passwordLookup(authSecret(), password)})
-    ON CONFLICT (password_lookup) DO NOTHING
+    INSERT INTO users (username, password_hash) VALUES (${username}, ${await hashPassword(password)})
+    ON CONFLICT (username) DO NOTHING
     RETURNING id`;
   if (rows.length === 0) return "taken";
   await startSession(rows[0].id);

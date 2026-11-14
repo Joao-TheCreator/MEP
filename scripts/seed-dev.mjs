@@ -1,11 +1,11 @@
 // Development only: creates a demo farm with the whole group so every screen
-// has something to show. Each demo person logs in with the password "<avatar-key>123".
+// has something to show. Each demo person logs in with the name "<avatar-key>" and the password "<avatar-key>123".
 //
 //   npm run db:seed            (uses DATABASE_URL from the environment / .env.local)
 //
 // Re-running it resets the demo farm (invite code DEMO01). It refuses to run
 // against a non-local database unless SEED_FORCE=1.
-import { createHmac } from "node:crypto";
+import { randomBytes, scryptSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import postgres from "postgres";
 
@@ -20,9 +20,12 @@ if (!["localhost", "127.0.0.1", "::1"].includes(host) && process.env.SEED_FORCE 
   process.exit(1);
 }
 
-// Same as passwordLookup/authSecret in src/server/password.ts (keep in sync).
-const SECRET = process.env.AUTH_SECRET?.length >= 16 ? process.env.AUTH_SECRET : "dev-only-secret-change-me";
-const lookup = (password) => createHmac("sha256", SECRET).update(password.normalize("NFC")).digest("hex");
+// Same format as hashPassword in src/server/password.ts (keep in sync).
+const hashPassword = (password) => {
+  const salt = randomBytes(16);
+  const key = scryptSync(password.normalize("NFC"), salt, 32, { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+  return ["scrypt", 16384, 8, 1, salt.toString("base64url"), key.toString("base64url")].join("$");
+};
 const demoPassword = (key) => `${key}123`;
 
 // People and resource points live in seed-data.json; src/game/seed-data.test.ts
@@ -50,7 +53,7 @@ try {
       const [key, name] = PEOPLE[i];
       const profession = PROFESSIONS[i % PROFESSIONS.length];
       const [user] = await tx`
-        INSERT INTO users (email, password_lookup) VALUES (${key + "@demo.local"}, ${lookup(demoPassword(key))})
+        INSERT INTO users (email, username, password_hash) VALUES (${key + "@demo.local"}, ${key}, ${hashPassword(demoPassword(key))})
         RETURNING id`;
       const hoursAgo = 1 + (i * 37) % 9; // varied pending production, some storages full
       const [player] = await tx`
@@ -77,8 +80,8 @@ try {
   });
 
   console.log(`Demo farm ready: ${PEOPLE.length} moradores, invite code DEMO01.`);
-  console.log("Log in at http://localhost:3000/login with any of these passwords:");
-  console.log(PEOPLE.map(([key, name]) => `  ${name.padEnd(15)} ${demoPassword(key)}`).join("\n"));
+  console.log("Log in at http://localhost:3000/login with any of these names and passwords:");
+  console.log(PEOPLE.map(([key, name]) => `  ${name.padEnd(15)} nome ${key.padEnd(15)} senha ${demoPassword(key)}`).join("\n"));
 } finally {
   await sql.end();
 }

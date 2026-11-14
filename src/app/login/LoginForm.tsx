@@ -2,7 +2,7 @@
 import { useActionState, useState } from "react";
 import { login, signup, type ActionResult } from "../actions";
 
-/** Enter with your personal password, or create one the first time. */
+/** Enter with name + password, or create them the first time. */
 export function LoginForm() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   return mode === "login" ? <Login onNew={() => setMode("signup")} /> : <Signup onBack={() => setMode("login")} />;
@@ -19,8 +19,12 @@ function Login({ onNew }: { onNew: () => void }) {
     <form action={action} className="panel stack">
       <h2>Entrar</h2>
       <div>
+        <label htmlFor="username">Seu nome</label>
+        <input id="username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} required autoFocus />
+      </div>
+      <div>
         <label htmlFor="password">Sua senha</label>
-        <input id="password" name="password" type="password" autoComplete="current-password" required autoFocus />
+        <input id="password" name="password" type="password" autoComplete="current-password" required />
       </div>
       <button className="btn big" disabled={pending}>{pending ? "Entrando..." : "Entrar"}</button>
       <Message state={state} />
@@ -35,12 +39,16 @@ function Signup({ onBack }: { onBack: () => void }) {
     <form action={action} className="panel stack">
       <h2>Criar meu acesso</h2>
       <p className="small muted">
-        Escolha uma senha só sua, de pelo menos 6 caracteres. É só ela que você vai digitar para entrar,
-        então não use a mesma de outro lugar e não conte para ninguém.
+        Escolha um nome (de 3 a 20 letras, números, ponto, traço ou _) e uma senha de pelo menos
+        6 caracteres. Não use a mesma senha de outro lugar e não conte para ninguém.
       </p>
       <div>
+        <label htmlFor="new-username">Nome</label>
+        <input id="new-username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} required minLength={3} maxLength={20} autoFocus />
+      </div>
+      <div>
         <label htmlFor="new-password">Nova senha</label>
-        <input id="new-password" name="password" type="password" autoComplete="new-password" required minLength={6} autoFocus />
+        <input id="new-password" name="password" type="password" autoComplete="new-password" required minLength={6} />
       </div>
       <div>
         <label htmlFor="confirm">Repita a senha</label>
@@ -48,7 +56,7 @@ function Signup({ onBack }: { onBack: () => void }) {
       </div>
       <button className="btn big" disabled={pending}>{pending ? "Criando..." : "Criar e entrar"}</button>
       <Message state={state} />
-      <button type="button" className="btn secondary" onClick={onBack}>Já tenho senha</button>
+      <button type="button" className="btn secondary" onClick={onBack}>Já tenho acesso</button>
     </form>
   );
 }
